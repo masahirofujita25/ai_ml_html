@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>インタラクティブな回帰モデル評価指標ガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: "Data-Driven Indigo" - A professional and clean palette using shades of indigo, slate, and sky blue to create a focused, analytical atmosphere. -->
+    <!-- Application Structure Plan: The SPA is designed as an "Interactive Decision Guide". It starts with a task-oriented filter section where users select their primary evaluation goal. This action dynamically highlights relevant metric cards below, instantly guiding the user to the most appropriate information. This structure transforms a static document into a goal-driven tool, making the content more accessible and actionable. An interactive chart section is included to provide a hands-on demonstration of key concepts. -->
+    <!-- Visualization & Content Choices: Report Info: Various regression metrics -> Goal: Help users choose the right metric and understand their properties -> Viz/Presentation: A filterable card layout for metrics and a dynamic bar chart for visual comparison. -> Interaction: Users click filter buttons representing evaluation goals (e.g., "Handle Outliers"). This triggers JS to apply styles, highlighting relevant metric cards. The chart section visualizes how MAE, MSE, and MedAE are affected by an outlier in a sample dataset. -> Justification: This interactive approach is more engaging and effective for learning than static text. The chart provides a concrete, visual "aha!" moment about the impact of outliers. -> Library/Method: Chart.js (Canvas), Vanilla JS, Tailwind CSS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8fafc;
+        }
+        .metric-card {
+            transition: all 0.3s ease-in-out;
+            border-width: 2px;
+            border-color: transparent;
+        }
+        .filter-btn {
+            transition: all 0.2s ease;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 500;
+            background-color: #f1f5f9;
+            color: #475569;
+        }
+        .filter-btn:hover {
+            background-color: #e2e8f0;
+        }
+        .filter-btn.active {
+            background-color: #4338ca;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .highlight {
+            transform: translateY(-5px);
+            border-color: #6366f1;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .dimmed {
+            opacity: 0.4;
+            filter: grayscale(80%);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 50vh;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+    <div class="container mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
+
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold">インタラクティブな回帰モデル評価指標ガイド</h1>
+            <p class="mt-2 text-lg text-slate-600">あなたの目的に最適な指標を見つけよう</p>
+        </header>
+
+        <section id="filters" class="bg-white rounded-xl shadow-md p-6 mb-10">
+            <h2 class="text-xl font-bold text-center mb-4">あなたの主な目的は？</h2>
+            <div class="flex flex-wrap justify-center gap-3">
+                <button class="filter-btn active" data-filter="all">すべて表示</button>
+                <button class="filter-btn" data-filter="general">平均的な誤差を知りたい</button>
+                <button class="filter-btn" data-filter="outlier_heavy">大きな誤差を特に問題視したい</button>
+                <button class="filter-btn" data-filter="outlier_robust">外れ値の影響を抑えたい</button>
+                <button class="filter-btn" data-filter="worst_case">最悪のケースを知りたい</button>
+                <button class="filter-btn" data-filter="percentage">誤差を%で比較・報告したい</button>
+                <button class="filter-btn" data-filter="report">モデルの説明力を報告したい</button>
+            </div>
+        </section>
+
+        <main id="metrics-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Metric cards will be inserted here by JavaScript -->
+        </main>
+
+        <section id="interactive-chart-section" class="bg-white rounded-xl shadow-lg p-6 md:p-8 mt-12">
+            <h2 class="text-2xl font-bold text-center mb-2">体験：外れ値が与える影響</h2>
+            <p class="text-center text-slate-600 mb-6">あるデータセットに大きな外れ値が1つ含まれている場合、各指標がどう変化するか見てみましょう。</p>
+            <div class="chart-container">
+                <canvas id="outlierChart"></canvas>
+            </div>
+            <div class="text-center mt-4 text-slate-700 space-y-2">
+                <p>データセット (予測誤差): <code class="bg-slate-100 p-1 rounded">[2, 3, 4, 2, 5, <span class="font-bold text-red-600">20</span>]</code></p>
+                <p class="text-sm bg-yellow-50 p-2 rounded-md">注：MSEは誤差を2乗するため、外れ値(20)の影響が極端に増幅され、他の指標よりも値が非常に大きくなります。これが「大きな誤差にペナルティを与える」というMSEの特性です。</p>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+    const metricsData = [
+        {
+            id: 'mae',
+            name: '平均絶対誤差 (MAE)',
+            description: '誤差の絶対値の平均です。「予測は平均して `MAE` の値だけズレています」と直感的に解釈できます。',
+            pros: '単位が目的変数と同じで分かりやすい。外れ値の影響を受けにくい。',
+            cons: '大きな誤差を平等に扱うため、特に問題視したい場合には不向き。',
+            tags: ['general', 'outlier_robust']
+        },
+        {
+            id: 'mse',
+            name: '平均二乗誤差 (MSE)',
+            description: '誤差を2乗した値の平均です。大きな誤差に対してより大きなペナルティを与えます。',
+            pros: '大きな誤差を特に重視する。数学的に扱いやすく、モデルの損失関数として頻繁に使われる。',
+            cons: '単位が「目的変数の2乗」になるため解釈が難しい。外れ値に非常に敏感。',
+            tags: ['outlier_heavy']
+        },
+        {
+            id: 'medae',
+            name: '中央絶対誤差 (MedAE)',
+            description: '誤差の絶対値の中央値です。',
+            pros: '外れ値に対して非常に頑健（ロバスト）です。',
+            cons: 'モデルの全体的な性能ではなく、典型的な性能しか見ていない可能性がある。',
+            tags: ['outlier_robust']
+        },
+        {
+            id: 'max_error',
+            name: '最大誤差',
+            description: '最も大きかった誤差そのものです。',
+            pros: 'モデルが犯した最悪のケースを直接示します。',
+            cons: 'たった一つの外れ値に大きく依存します。',
+            tags: ['worst_case']
+        },
+        {
+            id: 'mape',
+            name: '平均絶対パーセント誤差 (MAPE)',
+            description: '誤差を実際の値で割ってパーセントにしたものの平均です。',
+            pros: 'スケールが異なるモデル同士を比較する際に便利。',
+            cons: '実際の値が0の場合に計算不能。0に近いと値が不安定になる。',
+            tags: ['percentage', 'report']
+        },
+        {
+            id: 'r2',
+            name: 'R2スコア（決定係数）',
+            description: 'データのばらつきのうち、モデルがどれだけを説明できたかの割合を示します。1に近いほど良いモデルです。',
+            pros: '0から1の範囲で評価され、異なるモデル間でも比較しやすい。説明力が直感的。',
+            cons: '説明変数を増やすだけで値が上がりがち。予測精度そのものではない。',
+            tags: ['report']
+        },
+        {
+            id: 'explained_variance',
+            name: '説明可能分散スコア',
+            description: 'R2スコアと非常に似ていますが、誤差の分散がデータの分散に対してどれだけ小さいかを示します。',
+            pros: 'モデルの説明力を示す。R2スコアとの比較で予測の偏り（バイアス）を発見できる可能性がある。',
+            cons: 'R2スコアとほぼ同じ値になることが多く、単体での解釈が難しい場合がある。',
+            tags: ['report']
+        }
+    ];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const grid = document.getElementById('metrics-grid');
+        const filters = document.querySelectorAll('.filter-btn');
+
+        // Populate metric cards
+        let html = '';
+        metricsData.forEach(metric => {
+            html += `
+                <div class="metric-card bg-white rounded-xl shadow-md p-6 flex flex-col space-y-4" data-tags="${metric.tags.join(' ')}">
+                    <h3 class="text-xl font-bold text-indigo-800">${metric.name}</h3>
+                    <p class="text-slate-600 flex-grow">${metric.description}</p>
+                    <div>
+                        <p class="text-sm"><strong class="text-green-600">長所:</strong> ${metric.pros}</p>
+                        <p class="text-sm"><strong class="text-red-600">短所:</strong> ${metric.cons}</p>
+                    </div>
+                </div>
+            `;
+        });
+        grid.innerHTML = html;
+
+        const cards = document.querySelectorAll('.metric-card');
+
+        // Filter functionality
+        filters.forEach(button => {
+            button.addEventListener('click', () => {
+                const filter = button.dataset.filter;
+
+                filters.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                cards.forEach(card => {
+                    if (filter === 'all' || card.dataset.tags.includes(filter)) {
+                        card.classList.remove('dimmed');
+                        card.classList.add('highlight');
+                    } else {
+                        card.classList.remove('highlight');
+                        card.classList.add('dimmed');
+                    }
+                });
+                 // Temporarily remove highlight after animation
+                setTimeout(() => {
+                    cards.forEach(card => card.classList.remove('highlight'));
+                }, 400);
+            });
+        });
+        
+        // Trigger initial "all" filter
+        document.querySelector('.filter-btn[data-filter="all"]').click();
+
+
+        // Chart.js visualization
+        const errors = [2, 3, 4, 2, 5, 20];
+        const calculateMAE = arr => arr.reduce((a, b) => a + Math.abs(b), 0) / arr.length;
+        const calculateMSE = arr => arr.reduce((a, b) => a + b*b, 0) / arr.length;
+        const calculateMedAE = arr => {
+            const sorted = [...arr].map(Math.abs).sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+        };
+        
+        const mae = calculateMAE(errors);
+        const mse = calculateMSE(errors);
+        const medae = calculateMedAE(errors);
+
+        const ctx = document.getElementById('outlierChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['平均絶対誤差 (MAE)', '平均二乗誤差 (MSE)', '中央絶対誤差 (MedAE)'],
+                datasets: [{
+                    label: '誤差の大きさ',
+                    data: [mae, mse, medae],
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.7)',
+                        'rgba(239, 68, 68, 0.7)',
+                        'rgba(16, 185, 129, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgba(59, 130, 246, 1)',
+                        'rgba(239, 68, 68, 1)',
+                        'rgba(16, 185, 129, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '計算された誤差'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toFixed(2);
+                                }
+                                return label;
+                            }
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: '外れ値(20)を含むデータセットでの各指標の値',
+                        font: {
+                            size: 16
+                        }
+                    }
+                }
+            }
+        });
+    });
+    </script>
+</body>
+</html>
