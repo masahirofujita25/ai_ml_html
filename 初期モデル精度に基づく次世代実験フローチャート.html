@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>インタラクティブ次世代実験フローチャート</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Stone, Slate, Teal, Amber) -->
+    <!-- Application Structure Plan: An interactive flowchart application that guides the user through the decision-making process described in the report. The core structure is a central branching point where the user selects the outcome of an initial model comparison. This choice dynamically reveals one of two distinct paths (Path A or Path B), each detailing its recommended strategies for data expansion and model refinement. This interactive structure was chosen to transform the static flowchart from the report into an active learning experience, allowing users to directly engage with the core "if-then" logic of the experimental strategy. -->
+    <!-- Visualization & Content Choices: Path A (DoE) -> Goal: Organize/Compare -> Scatter Chart (Chart.js) -> Compares strategic DoE points vs. random points -> Visually justifies DoE's efficiency. Path A (Refinement) -> Goal: Inform/Compare -> Bar Chart (Chart.js) -> Shows final model coefficients -> Makes the concept of an interpretable "design guide" tangible. Path B (Bayesian Opt.) -> Goal: Show Change/Relationship -> Line Chart with uncertainty band (Chart.js) -> Illustrates the "exploit vs. explore" concept. Path B (Refinement) -> Goal: Inform -> Simple card with SHAP concept visual -> Explains the goal of maximizing prediction accuracy. All choices use Chart.js on canvas to make abstract concepts concrete and interactive. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8fafc; 
+        }
+        .flow-path {
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            display: none;
+        }
+        .path-card {
+            background-color: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            border: 1px solid #e2e8f0;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 280px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-700">
+
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 text-center">初期モデル精度に基づく次世代実験フローチャート</h1>
+            <p class="text-center text-slate-600 mt-2">初期モデルの性能に応じて、次の実験戦略をインタラクティブに選択・探求します。</p>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- Start Point -->
+        <div id="startPoint" class="text-center mb-8">
+            <div class="path-card max-w-3xl mx-auto">
+                <span class="inline-block bg-teal-100 text-teal-800 text-sm font-semibold px-3 py-1 rounded-full mb-4">1. スタート地点</span>
+                <h2 class="text-2xl font-bold text-slate-800 mb-3">初期モデルの構築と比較</h2>
+                <p class="text-slate-600">まず、手元の少量データセットを使い、プラットフォーム上の全てのアルゴリズムでモデルを構築します。そして、交差検証などで各モデルの予測精度を公平に比較し、どのタイプのモデルが最もデータに適しているかを見極めます。</p>
+            </div>
+            <div class="text-5xl text-slate-300 my-4">↓</div>
+        </div>
+
+        <!-- Branching Point -->
+        <div id="branchingPoint" class="text-center mb-8">
+            <div class="path-card max-w-3xl mx-auto">
+                <span class="inline-block bg-amber-100 text-amber-800 text-sm font-semibold px-3 py-1 rounded-full mb-4">2. 分岐点</span>
+                <h2 class="text-2xl font-bold text-slate-800 mb-3">最も精度が良かったモデルはどのタイプか？</h2>
+                <p class="text-slate-600 mb-6">初期モデルの性能評価は、データに潜む関係性の性質を示唆する重要なヒントです。以下のボタンをクリックして、あなたの状況に合った戦略を選択してください。</p>
+                <div class="flex flex-col md:flex-row justify-center gap-4">
+                    <button id="showPathA" class="w-full md:w-auto bg-teal-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-teal-700 transition-all transform hover:scale-105">
+                        A: 「数式ベース」モデルの精度が良い
+                    </button>
+                    <button id="showPathB" class="w-full md:w-auto bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-slate-800 transition-all transform hover:scale-105">
+                        B: 「ブラックボックス」モデルの精度が良い
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Paths Container -->
+        <div class="relative">
+            <!-- Path A -->
+            <section id="pathA" class="flow-path">
+                <div class="text-center mb-4"><span class="bg-teal-100 text-teal-800 font-bold py-2 px-4 rounded-full">パスA: 「数式ベース」モデルが優位な場合のフロー</span></div>
+                <p class="text-center max-w-2xl mx-auto mb-8 text-slate-600">データと結果の関係が**比較的滑らかで、数式で表現しやすい**可能性が高いです。この法則性を正確に捉え、「設計指針」を獲得する戦略を取ります。</p>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="path-card">
+                        <h3 class="text-xl font-bold text-teal-700 mb-3">ステップA-1: データ拡充 → 実験計画法(DoE)</h3>
+                        <p class="mb-4">応答曲面の全体像を効率的に描くため、実験点を戦略的に配置する**実験計画法(DoE)**を推奨します。これにより、ランダムな実験より質の高いデータを得られます。</p>
+                        <div class="chart-container">
+                            <canvas id="doeChart"></canvas>
+                        </div>
+                        <p class="text-xs text-center text-slate-500 mt-2">DoE（青）は、設計空間を網羅的にカバーします。</p>
+                    </div>
+                    <div class="path-card">
+                        <h3 class="text-xl font-bold text-teal-700 mb-3">ステップA-2: モデル精緻化 → 回帰モデルの深化</h3>
+                        <p class="mb-4">拡充したデータで再度モデルを学習させ、信頼性の高い「設計指針」となる数式を獲得します。この式は現象を理解する「地図」となります。</p>
+                        <div class="bg-slate-800 text-white p-3 rounded-lg font-mono text-xs mb-4">
+                            <span class="text-sky-300">性能</span> = <span class="text-amber-300">1.5</span>*<span class="text-green-300">[温度]</span> - <span class="text-amber-300">0.8</span>*<span class="text-green-300">[圧力]</span>^2 ...
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="factorEffectsChartA"></canvas>
+                        </div>
+                        <p class="text-xs text-center text-slate-500 mt-2">最終モデルの係数（要因効果）を可視化します。</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Path B -->
+            <section id="pathB" class="flow-path">
+                <div class="text-center mb-4"><span class="bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-full">パスB: 「ブラックボックス」モデルが優位な場合のフロー</span></div>
+                <p class="text-center max-w-2xl mx-auto mb-8 text-slate-600">データと結果の関係が**非常に複雑で、単純な数式では表現しにくい**可能性が高いです。最高性能点を見つけ出す探索戦略を取ります。</p>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="path-card">
+                        <h3 class="text-xl font-bold text-slate-800 mb-3">ステップB-1: データ拡充 → ベイズ最適化</h3>
+                        <p class="mb-4">複雑な設計空間から効率的に最適点を探すため、**ベイズ最適化**を推奨します。GPRモデルが有望な領域（活用）と未知の領域（探索）を天秤にかけ、次の実験点を提案します。</p>
+                        <div class="chart-container">
+                            <canvas id="bayesOptChart"></canvas>
+                        </div>
+                         <p class="text-xs text-center text-slate-500 mt-2">予測（線）と不確実性（影）を基に次の点を探索します。</p>
+                    </div>
+                    <div class="path-card">
+                        <h3 class="text-xl font-bold text-slate-800 mb-3">ステップB-2: モデル精緻化 → 予測精度の最大化</h3>
+                        <p class="mb-4">ゴールを「とにかく最も精度の高い予測モデル（デジタルツイン）を作ること」に切り替え、ハイパーパラメータを徹底的にチューニングします。</p>
+                        <p class="mb-4">可能であれば**SHAP**などの技術で、「この高性能サンプルでは、どのパラメータが貢献したか」を局所的に解釈し、知見を補完します。</p>
+                        <div class="bg-slate-100 p-4 rounded-lg border">
+                            <h4 class="font-semibold text-sm text-center mb-2">SHAPによる局所的解釈の例</h4>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-red-500 h-2.5 rounded-l-full" style="width: 30%"></div><div class="bg-blue-500 h-2.5 rounded-r-full" style="width: 70%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs mt-1">
+                                <span class="text-red-600">負の影響</span>
+                                <span class="text-blue-600">正の影響</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const pathA = document.getElementById('pathA');
+            const pathB = document.getElementById('pathB');
+            const showPathAButton = document.getElementById('showPathA');
+            const showPathBButton = document.getElementById('showPathB');
+
+            const chartOptions = {
+                maintainAspectRatio: false,
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { x: { grid: { display: false } }, y: { grid: { color: '#e2e8f0' } } }
+            };
+
+            let doeChart, factorEffectsChartA, bayesOptChart;
+
+            function displayPath(pathToShow, pathToHide) {
+                pathToShow.style.display = 'block';
+                pathToHide.style.display = 'none';
+                setTimeout(() => {
+                    pathToShow.style.opacity = 1;
+                    pathToShow.style.transform = 'translateY(0)';
+                }, 10);
+                
+                if (pathToShow === pathA) {
+                    if (!doeChart) createPathACharts();
+                } else if (pathToShow === pathB) {
+                    if (!bayesOptChart) createPathBCharts();
+                }
+            }
+
+            showPathAButton.addEventListener('click', () => {
+                displayPath(pathA, pathB);
+                showPathAButton.classList.add('ring-4', 'ring-teal-300');
+                showPathBButton.classList.remove('ring-4', 'ring-slate-400');
+            });
+
+            showPathBButton.addEventListener('click', () => {
+                displayPath(pathB, pathA);
+                showPathBButton.classList.add('ring-4', 'ring-slate-400');
+                showPathAButton.classList.remove('ring-4', 'ring-teal-300');
+            });
+
+            function createPathACharts() {
+                const doeCtx = document.getElementById('doeChart').getContext('2d');
+                doeChart = new Chart(doeCtx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [
+                            { label: 'Random Points', data: Array.from({length: 15}, () => ({x: Math.random()*10, y: Math.random()*10})), backgroundColor: '#94a3b8' },
+                            { label: 'DoE Points', data: [{x:2,y:2},{x:2,y:8},{x:5,y:5},{x:8,y:2},{x:8,y:8}], backgroundColor: '#0d9488', pointRadius: 6 }
+                        ]
+                    },
+                    options: { ...chartOptions, plugins: { legend: { display: true, position: 'bottom' } } }
+                });
+
+                const factorEffectsCtxA = document.getElementById('factorEffectsChartA').getContext('2d');
+                factorEffectsChartA = new Chart(factorEffectsCtxA, {
+                    type: 'bar',
+                    data: {
+                        labels: ['温度', '圧力^2', '温度*濃度'],
+                        datasets: [{ label: '係数', data: [1.5, -0.8, 2.1], backgroundColor: d => d.raw >= 0 ? '#0d9488' : '#f43f5e', borderRadius: 4 }]
+                    },
+                    options: chartOptions
+                });
+            }
+
+            function createPathBCharts() {
+                const bayesOptCtx = document.getElementById('bayesOptChart').getContext('2d');
+                const labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+                const upper = [65, 72, 80, 85, 88, 90, 89, 86, 82, 78, 75];
+                const lower = [35, 42, 50, 58, 65, 70, 69, 64, 58, 52, 48];
+                const mean = lower.map((val, i) => (val + upper[i]) / 2);
+
+                bayesOptChart = new Chart(bayesOptCtx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Mean Prediction', data: mean, borderColor: '#334155', tension: 0.4, pointRadius: 0 },
+                            { label: 'Uncertainty', data: upper, fill: '+1', backgroundColor: 'rgba(100, 116, 139, 0.2)', tension: 0.4, pointRadius: 0 },
+                            { label: 'Uncertainty', data: lower, fill: false, pointRadius: 0 },
+                            { label: 'Observations', type: 'scatter', data: [{x:2, y:55}, {x:7, y:88}], backgroundColor: '#0d9488', pointRadius: 6 },
+                            { label: 'Next Point', type: 'scatter', data: [{x:4.5, y:76}], backgroundColor: '#f59e0b', pointRadius: 8, pointStyle: 'star' }
+                        ]
+                    },
+                    options: { ...chartOptions, plugins: { legend: { display: false } } }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
