@@ -1,1 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ファイル一覧</title>
+    <style>
+        body { font-family: sans-serif; padding: 2em; }
+        h1 { border-bottom: 2px solid #eee; }
+        ul { list-style: none; padding-left: 0; }
+        li { margin: 0.5em 0; }
+        a { text-decoration: none; color: #0366d6; }
+        a:hover { text-decoration: underline; }
+        .emoji { margin-right: 0.5em; }
+    </style>
+</head>
+<body>
 
+    <h1>ファイル一覧</h1>
+    <p>このリポジトリのファイルリストです。</p>
+
+    <ul id="file-list">
+        <li>読み込み中...</li>
+    </ul>
+
+    <script>
+        // --- 設定項目：ご自身の情報に書き換えてください ---
+        const GITHUB_USERNAME = "masahirofujita25";
+        const GITHUB_REPOSITORY = "ai_ml_html";
+        // ----------------------------------------------------
+
+        const listElement = document.getElementById('file-list');
+        const apiURL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPOSITORY}/contents/`;
+
+        fetch(apiURL)
+            .then(response => response.json())
+            .then(data => {
+                listElement.innerHTML = ''; // 「読み込み中...」をクリア
+
+                // フォルダを先に表示するためのソート
+                data.sort((a, b) => {
+                    if (a.type === b.type) {
+                        return a.name.localeCompare(b.name);
+                    }
+                    return a.type === 'dir' ? -1 : 1;
+                });
+
+                data.forEach(item => {
+                    // index.html自体はリストに表示しない
+                    if (item.name === 'index.html') {
+                        return;
+                    }
+
+                    const listItem = document.createElement('li');
+                    const link = document.createElement('a');
+                    link.href = item.html_url; // GitHub上のファイルへのリンク
+                    link.href = item.path;     // GitHub Pages上のWebページへのリンク
+                    link.target = "_blank"; // 新しいタブで開く
+                    
+                    const emoji = item.type === 'dir' ? '📁' : '📄';
+                    link.innerHTML = `<span class="emoji">${emoji}</span>${item.name}`;
+                    
+                    listItem.appendChild(link);
+                    listElement.appendChild(listItem);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching repository contents:', error);
+                listElement.innerHTML = '<li>リストの取得に失敗しました。</li>';
+            });
+    </script>
+
+</body>
+</html>
