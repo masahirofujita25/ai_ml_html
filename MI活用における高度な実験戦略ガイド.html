@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ja" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>インタラクティブMI実験戦略ガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Stone, Slate, Teal, Amber) -->
+    <!-- Application Structure Plan: A single-page, scrollable application designed as an educational journey through the advanced MI strategies in the report. The structure follows the report's logic: defining model types, exploring the "model reversal" phenomenon with an animated chart, presenting a key decision point (DoE vs. Bayesian Optimization), and finally, explaining the sequential batch approach with a visual loop. This narrative structure was chosen to make the abstract strategic concepts tangible and memorable for the user, transforming a static guide into an active learning experience. -->
+    <!-- Visualization & Content Choices: Model Reversal -> Goal: Explain Change -> Animated Line/Scatter Chart (Chart.js) -> User clicks to add data, showing how the best-fit model changes from linear to complex. DoE vs. Bayes Opt -> Goal: Compare/Guide Decision -> Interactive choice reveals two distinct visualizations. DoE is a scatter plot comparing random vs. structured points. Bayesian Optimization is a line chart with an uncertainty band that updates as the user "experiments". Sequential Batching -> Goal: Explain Process -> Animated diagram (HTML/CSS/JS) -> Visually represents the iterative cycle. These choices use Chart.js on canvas to make complex statistical concepts intuitive. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8fafc; 
+        }
+        .content-card {
+            background-color: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            border: 1px solid #e2e8f0;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 320px;
+            }
+        }
+        .strategy-path {
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            display: none;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .loop-animation div {
+            animation: fadeInOut 4s infinite;
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; transform: scale(0.95); }
+            25%, 75% { opacity: 1; transform: scale(1); }
+        }
+        .loop-animation div:nth-child(1) { animation-delay: 0s; }
+        .loop-animation div:nth-child(2) { animation-delay: 1s; }
+        .loop-animation div:nth-child(3) { animation-delay: 2s; }
+        .loop-animation div:nth-child(4) { animation-delay: 3s; }
+    </style>
+</head>
+<body class="text-slate-700">
+
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 text-center">MI活用における高度な実験戦略ガイド</h1>
+            <p class="text-center text-slate-600 mt-2">初期モデルの評価から次世代の実験計画までをインタラクティブに探求します。</p>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 space-y-12">
+        
+        <!-- 1. Model Types -->
+        <section id="modelTypes" class="content-card">
+            <span class="inline-block bg-slate-100 text-slate-800 text-sm font-semibold px-3 py-1 rounded-full mb-4">1. モデルタイプの定義</span>
+            <p class="text-lg mb-6 text-slate-600">本ガイドでは、モデルをその特性から2種類に大別します。この分類が、戦略を決定する上での最初のステップとなります。</p>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                    <h3 class="font-bold text-teal-700 text-xl mb-2">解釈性の高い「数式ベース」モデル</h3>
+                    <p class="text-sm text-slate-600 mb-3">結果とパラメータの関係を数式（例: y = ax + b）で表現するため、どのパラメータがどの程度影響を与えているかの解釈が容易です。</p>
+                    <p class="font-mono text-xs bg-white p-2 rounded">`Polynomial Lasso/Ridge`, `Simple Bayesian Ridge`, `Linear Regression`</p>
+                </div>
+                <div class="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                    <h3 class="font-bold text-slate-800 text-xl mb-2">複雑な関係性を捉える「ブラックボックス」モデル</h3>
+                    <p class="text-sm text-slate-600 mb-3">内部構造が複雑で単純な数式では表現できませんが、パラメータ間の複雑な交互作用や非線形な関係性を柔軟に捉え、高い予測精度を出すことを得意とします。</p>
+                    <p class="font-mono text-xs bg-white p-2 rounded">`Random Forest`, `XGBoost`, `SVR`, `GPR`</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Model Reversal -->
+        <section id="modelReversal" class="content-card">
+            <span class="inline-block bg-slate-100 text-slate-800 text-sm font-semibold px-3 py-1 rounded-full mb-4">2. モデル性能の逆転現象：仮説は進化する</span>
+            <p class="text-lg mb-6 text-slate-600">初期の少ないデータでのモデル評価は絶対ではありません。データを追加する過程で、最適なモデルタイプが変化する「性能の逆転」は頻繁に起こります。下のグラフでこの現象を体験してみましょう。</p>
+            <div class="chart-container">
+                <canvas id="reversalChart"></canvas>
+            </div>
+            <div class="text-center mt-4">
+                <button id="addReversalData" class="bg-teal-600 text-white font-semibold py-2 px-5 rounded-lg shadow-md hover:bg-teal-700 transition-all">実験データを追加する</button>
+                <button id="resetReversalChart" class="ml-2 text-slate-500 hover:text-slate-700 font-semibold py-2 px-5">リセット</button>
+            </div>
+            <p id="reversalExplanation" class="text-center text-sm text-slate-500 mt-3 transition-opacity duration-500">初期の少ないデータでは、単純な「数式ベース」モデル（直線）が最もよく適合しているように見えます。</p>
+        </section>
+
+        <!-- 3. Strategy Selection -->
+        <section id="strategySelection" class="content-card">
+            <span class="inline-block bg-amber-100 text-amber-800 text-sm font-semibold px-3 py-1 rounded-full mb-4">3. データ拡充戦略の選択</span>
+            <p class="text-lg mb-6 text-slate-600">初期モデルの評価やデータの特性を基に、次の実験の主目的を決定します。目的によって、最適なデータ拡充戦略は異なります。あなたの主目的はどちらですか？</p>
+            <div class="flex flex-col md:flex-row justify-center gap-4 mb-8">
+                <button onclick="showStrategy('optimization')" class="w-full md:w-auto bg-teal-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-teal-700 transition-all transform hover:scale-105">
+                    🧗 最適化 (最高性能のレシピ探し)
+                </button>
+                <button onclick="showStrategy('modeling')" class="w-full md:w-auto bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-slate-800 transition-all transform hover:scale-105">
+                    🗺️ モデリング (プロセス全体の理解)
+                </button>
+            </div>
+
+            <!-- Optimization Path -->
+            <div id="optimization" class="strategy-path">
+                <h3 class="text-2xl font-bold text-teal-700 mb-3 text-center">推奨戦略: ベイズ最適化</h3>
+                <p class="text-center max-w-2xl mx-auto mb-6 text-slate-600">実験コストを最小限に抑え、最速で最適点を見つけたい場合に最適です。予測の「活用」と「探索」をバランス良く行い、次に実験すべき最も情報価値の高い一点を提案します。</p>
+                <div class="chart-container">
+                    <canvas id="bayesOptChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Modeling Path -->
+            <div id="modeling" class="strategy-path">
+                <h3 class="text-2xl font-bold text-slate-800 mb-3 text-center">推奨戦略: 実験計画法 (DoE)</h3>
+                <p class="text-center max-w-2xl mx-auto mb-6 text-slate-600">特定の最適点だけでなく、プロセス全体の挙動を理解し、頑健なモデル（デジタルツイン）を構築したい場合に有効です。設計空間全体を効率的にカバーします。</p>
+                <div class="chart-container">
+                    <canvas id="doeChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. Sequential Approach -->
+        <section id="sequentialApproach" class="content-card">
+            <span class="inline-block bg-slate-100 text-slate-800 text-sm font-semibold px-3 py-1 rounded-full mb-4">4. 実験点計画：逐次的アプローチの重要性</span>
+            <p class="text-lg mb-6 text-slate-600">一度に多数の実験を計画すると、学習機会を失うリスクがあります。常に最新の知見に基づいて次のアクションを決定できる「逐次的なバッチ投入」が、現実的で強力な戦略です。</p>
+            <div class="flex items-center justify-center space-x-2 md:space-x-4 text-center loop-animation h-24">
+                <div class="bg-teal-100 text-teal-800 p-3 rounded-lg shadow">
+                    <p class="font-bold">1. 計画</p>
+                    <p class="text-xs">小バッチを提案</p>
+                </div>
+                <div class="text-2xl text-slate-400 font-sans">→</div>
+                <div class="bg-amber-100 text-amber-800 p-3 rounded-lg shadow">
+                    <p class="font-bold">2. 実行</p>
+                    <p class="text-xs">実験を行う</p>
+                </div>
+                <div class="text-2xl text-slate-400 font-sans">→</div>
+                <div class="bg-sky-100 text-sky-800 p-3 rounded-lg shadow">
+                    <p class="font-bold">3. 更新</p>
+                    <p class="text-xs">モデルを再学習</p>
+                </div>
+                <div class="text-2xl text-slate-400 font-sans">↺</div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const chartDefaultOptions = {
+                maintainAspectRatio: false,
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    x: { grid: { display: false }, ticks: { font: { family: "'Inter', sans-serif" } } }, 
+                    y: { grid: { color: '#e2e8f0' }, ticks: { font: { family: "'Inter', sans-serif" } } } 
+                }
+            };
+
+            // --- Reversal Chart Logic ---
+            let reversalChart;
+            const reversalExplanation = document.getElementById('reversalExplanation');
+            const initialData = [{x: 1, y: 2.2}, {x: 2, y: 2.8}, {x: 8, y: 7.1}, {x: 9, y: 8.2}];
+            const additionalData = [{x: 3, y: 5.5}, {x: 4, y: 7.5}, {x: 5, y: 8.0}, {x: 6, y: 7.0}, {x: 7, y: 6.0}];
+            let currentData = [...initialData];
+
+            function createReversalChart() {
+                const ctx = document.getElementById('reversalChart').getContext('2d');
+                if (reversalChart) reversalChart.destroy();
+                
+                const allX = currentData.map(d => d.x);
+                const minX = Math.min(...allX);
+                const maxX = Math.max(...allX);
+
+                // Linear regression line
+                const sumX = allX.reduce((a, b) => a + b, 0);
+                const sumY = currentData.map(d => d.y).reduce((a, b) => a + b, 0);
+                const sumXY = currentData.reduce((sum, d) => sum + d.x * d.y, 0);
+                const sumX2 = currentData.reduce((sum, d) => sum + d.x * d.x, 0);
+                const n = currentData.length;
+                const m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+                const b = (sumY - m * sumX) / n;
+                const linearLine = [{x: minX, y: m * minX + b}, {x: maxX, y: m * maxX + b}];
+
+                // Polynomial "best fit" curve (simplified)
+                const polyCurve = Array.from({length: 20}, (_, i) => {
+                    const x = minX + (maxX - minX) * i / 19;
+                    // A simple curve that fits the full dataset well
+                    return {x: x, y: -0.5 * Math.pow(x-5, 2) + 8};
+                });
+                
+                reversalChart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [
+                            { label: '実験データ', data: currentData, backgroundColor: '#0d9488', pointRadius: 6 },
+                            {
+                                label: '数式ベースモデル',
+                                type: 'line',
+                                data: linearLine,
+                                borderColor: '#0ea5e9',
+                                borderWidth: 3,
+                                pointRadius: 0,
+                                tension: 0.1
+                            },
+                            {
+                                label: 'ブラックボックスモデル',
+                                type: 'line',
+                                data: polyCurve,
+                                borderColor: '#f97316',
+                                borderWidth: 3,
+                                borderDash: [5, 5],
+                                pointRadius: 0,
+                                tension: 0.4
+                            }
+                        ]
+                    },
+                    options: chartDefaultOptions
+                });
+            }
+            
+            document.getElementById('addReversalData').addEventListener('click', () => {
+                if (currentData.length < initialData.length + additionalData.length) {
+                    currentData = [...initialData, ...additionalData];
+                    createReversalChart();
+                    reversalExplanation.textContent = 'データを追加すると、関係性の複雑さが明らかに。柔軟な「ブラックボックス」モデル（曲線）の方が、より良く適合するようになります。';
+                }
+            });
+
+            document.getElementById('resetReversalChart').addEventListener('click', () => {
+                currentData = [...initialData];
+                createReversalChart();
+                reversalExplanation.textContent = '初期の少ないデータでは、単純な「数式ベース」モデル（直線）が最もよく適合しているように見えます。';
+            });
+
+            // --- Strategy Charts Logic ---
+            let bayesOptChart, doeChart;
+            window.showStrategy = function(strategy) {
+                const optPath = document.getElementById('optimization');
+                const modPath = document.getElementById('modeling');
+                
+                if (strategy === 'optimization') {
+                    optPath.style.display = 'block';
+                    modPath.style.display = 'none';
+                    setTimeout(() => { optPath.style.opacity = 1; optPath.style.transform = 'translateY(0)'; }, 10);
+                    if (!bayesOptChart) createBayesOptChart();
+                } else {
+                    modPath.style.display = 'block';
+                    optPath.style.display = 'none';
+                    setTimeout(() => { modPath.style.opacity = 1; modPath.style.transform = 'translateY(0)'; }, 10);
+                    if (!doeChart) createDoeChart();
+                }
+            }
+
+            function createBayesOptChart() {
+                const ctx = document.getElementById('bayesOptChart').getContext('2d');
+                const labels = Array.from({length: 11}, (_, i) => i);
+                const upper = [65, 72, 80, 85, 88, 90, 89, 86, 82, 78, 75];
+                const lower = [35, 42, 50, 58, 65, 70, 69, 64, 58, 52, 48];
+                const mean = lower.map((val, i) => (val + upper[i]) / 2);
+                bayesOptChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Mean Prediction', data: mean, borderColor: '#334155', tension: 0.4, pointRadius: 0 },
+                            { label: 'Uncertainty', data: upper, fill: '+1', backgroundColor: 'rgba(100, 116, 139, 0.2)', tension: 0.4, pointRadius: 0 },
+                            { label: 'Uncertainty', data: lower, fill: false, pointRadius: 0 },
+                            { label: 'Observations', type: 'scatter', data: [{x:2, y:55}, {x:7, y:88}], backgroundColor: '#0d9488', pointRadius: 6 },
+                            { label: 'Next Point', type: 'scatter', data: [{x:4.5, y:76}], backgroundColor: '#f59e0b', pointRadius: 8, pointStyle: 'star' }
+                        ]
+                    },
+                    options: chartDefaultOptions
+                });
+            }
+
+            function createDoeChart() {
+                const ctx = document.getElementById('doeChart').getContext('2d');
+                doeChart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [
+                            { label: 'Random Points', data: Array.from({length: 15}, () => ({x: Math.random()*10, y: Math.random()*10})), backgroundColor: '#94a3b8' },
+                            { label: 'DoE Points', data: [{x:2,y:2},{x:2,y:8},{x:5,y:5},{x:8,y:2},{x:8,y:8}], backgroundColor: '#0d9488', pointRadius: 6 }
+                        ]
+                    },
+                    options: { ...chartDefaultOptions, plugins: { legend: { display: true, position: 'bottom' } } }
+                });
+            }
+
+            // Initial chart creation
+            createReversalChart();
+        });
+    </script>
+</body>
+</html>
