@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>回帰モデル評価 インタラクティブガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: アプリケーションは、静的なガイドをインタラクティブな学習ツールに変えることを目的としています。構成は、1)主要な指標であるMAPEとR2スコアの紹介、2)ユーザーが「系統的誤差（バイアス）」と「ランダムノイズ」をスライダーで操作し、指標の変化をリアルタイムで確認できるインタラクティブなグラフセクション、3)その結果と連動してモデルの状態を診断する4象限ツール、4)補完的な指標（MAE, RMSE）の解説、5)実践的な評価フローのまとめ、という流れです。この構造は、ユーザーが能動的にパラメータを操作し、「原因と結果」を体験することで、各指標の本質的な意味を直感的に理解できるように設計されています。これにより、単なる情報の羅列ではなく、探索的な学習体験を提供します。 -->
+    <!-- Visualization & Content Choices: 主要な可視化としてChart.jsを用いたインタラクティブな散布図を採用。ユーザーはスライダー操作でデータ点のバイアスとノイズを動的に変更でき、R2, MAPE, MAE, RMSEの各指標がリアルタイムで更新される様子を確認できます。これにより、「R2が高いがMAPEも高い」といった状況を視覚的に再現し、指標の多角的な評価の重要性を伝えます。4象限診断ツールはHTML/CSSで構築し、グラフの状態に応じて対応する象限がハイライトされるインタラクションをJSで実装。各象限をクリックすると詳細な解説が表示されます。補足指標や評価フローは、構造化されたテキストで分かりやすく提示します。SVG/Mermaidは使用せず、すべての可視化とインタラクションをCanvasとJSで実現します。 -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+        }
+        .quadrant {
+            transition: all 0.3s ease-in-out;
+        }
+        .quadrant.active {
+            transform: scale(1.03);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-color: #0891b2; /* cyan-600 */
+        }
+         .quadrant-content {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .quadrant.expanded .quadrant-content {
+            display: block;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-slate-800">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-cyan-800 mb-2">回帰モデル評価 インタラクティブガイド</h1>
+            <p class="text-lg text-slate-600">指標を動かして、モデルの「性格」を理解しよう。</p>
+        </header>
+
+        <section id="intro" class="mb-16 bg-white p-8 rounded-xl shadow-sm border border-stone-200">
+            <h2 class="text-2xl font-bold text-cyan-700 mb-4">はじめに：単一の指標に頼らない</h2>
+            <p class="text-slate-700 leading-relaxed">
+                モデルの性能を評価する上で最も重要な原則は、「**単一の指標だけで判断しない**」ことです。各指標にはそれぞれ長所と短所があり、見ている側面が異なります。複数の指標を組み合わせることで、モデルの性能を多角的かつ正確に理解できます。このツールでは、特に重要な2つの指標、**MAPE**と**R2スコア**の関係性をインタラクティブに探求します。
+            </p>
+        </section>
+
+        <section id="interactive-dashboard" class="mb-16">
+            <h2 class="text-3xl font-bold text-center text-cyan-700 mb-8">インタラクティブ・シミュレーター</h2>
+            <p class="text-center text-slate-600 mb-10 max-w-3xl mx-auto">
+                ここでは、理想的なデータに「系統的なズレ（バイアス）」や「ランダムなばらつき（ノイズ）」を加えると、各評価指標がどのように反応するかを体験できます。R2スコアは高いのにMAPEが悪い、といった状況を実際に作り出し、指標を多角的に見ることの重要性を理解しましょう。
+            </p>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                    <h3 class="text-xl font-bold mb-4 text-slate-700">パラメータ調整</h3>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="data-pattern-selector" class="block mb-2 font-medium text-slate-600">データパターン</label>
+                            <select id="data-pattern-selector" class="w-full p-2 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
+                                <option value="strong_trend">明確なトレンド (R2 高)</option>
+                                <option value="moderate_trend">中程度のトレンド (R2 中)</option>
+                                <option value="cluster_no_trend">トレンドなし (R2 低)</option>
+                            </select>
+                            <p class="text-sm text-slate-500 mt-1">モデルが学習するデータの元の傾向を選びます。</p>
+                        </div>
+                        <div>
+                            <label for="regression-type-selector" class="block mb-2 font-medium text-slate-600">回帰モデルの種類</label>
+                            <select id="regression-type-selector" class="w-full p-2 border border-stone-300 rounded-lg bg-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
+                                <option value="linear">線形回帰</option>
+                                <option value="poly2">多項式回帰 (2次)</option>
+                            </select>
+                            <p class="text-sm text-slate-500 mt-1">データにフィットさせるモデルの種類を選択します。</p>
+                        </div>
+                        <div>
+                            <label for="bias-slider" class="block mb-2 font-medium text-slate-600">系統的誤差（バイアス）</label>
+                            <input id="bias-slider" type="range" min="-50" max="50" value="0" class="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-cyan-600">
+                            <p class="text-sm text-slate-500 mt-1">予測の全体的なズレを調整します。（例：常に10km/h速いスピードメーター）</p>
+                        </div>
+                        <div>
+                            <label for="noise-slider" class="block mb-2 font-medium text-slate-600">ランダムノイズ</label>
+                            <input id="noise-slider" type="range" min="0" max="100" value="20" class="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-cyan-600">
+                            <p class="text-sm text-slate-500 mt-1">予測の「ばらつき」を調整します。</p>
+                        </div>
+                    </div>
+                    <div class="mt-8 pt-6 border-t border-stone-200">
+                        <h3 class="text-xl font-bold mb-4 text-slate-700">評価指標スコア</h3>
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div class="bg-cyan-50 p-4 rounded-lg">
+                                <p class="text-sm font-medium text-cyan-700">R2スコア</p>
+                                <p id="r2-value" class="text-2xl font-bold text-cyan-900">0.00</p>
+                            </div>
+                            <div class="bg-amber-50 p-4 rounded-lg">
+                                <p class="text-sm font-medium text-amber-700">MAPE (%)</p>
+                                <p id="mape-value" class="text-2xl font-bold text-amber-900">0.0</p>
+                            </div>
+                             <div class="bg-slate-100 p-4 rounded-lg">
+                                <p class="text-sm font-medium text-slate-600">MAE</p>
+                                <p id="mae-value" class="text-2xl font-bold text-slate-800">0.0</p>
+                            </div>
+                            <div class="bg-slate-100 p-4 rounded-lg">
+                                <p class="text-sm font-medium text-slate-600">RMSE</p>
+                                <p id="rmse-value" class="text-2xl font-bold text-slate-800">0.0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                    <div class="chart-container" style="position: relative; height: 80vh; max-height: 500px; width: 100%; max-width: 800px; margin: auto;">
+                        <canvas id="scatterPlot"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="quadrant-analysis" class="mb-16">
+            <h2 class="text-3xl font-bold text-center text-cyan-700 mb-8">4象限による総合診断</h2>
+            <p class="text-center text-slate-600 mb-8 max-w-3xl mx-auto">
+                2つの指標を組み合わせることで、モデルの状態を4つのタイプに分類し、的確な診断を下すことができます。下の各象限をクリックして詳細を確認してください。
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div id="q1" class="quadrant bg-white p-6 rounded-xl shadow-sm border-2 border-transparent cursor-pointer">
+                    <h3 class="text-xl font-bold mb-2">象限1: 理想的なモデル 👍</h3>
+                    <p class="font-medium text-slate-600 mb-2">R2スコア: 高い / MAPE: 低い</p>
+                    <div class="quadrant-content">
+                        <p class="text-sm text-slate-700 leading-relaxed">
+                            <strong class="text-cyan-700">診断:</strong> 傾向を正確に捉え、かつ個々の予測も高精度。モデルの信頼性と正確性が両立している最も望ましい状態です。<br>
+                            <strong class="text-cyan-700">アクション:</strong> 実用化を積極的に検討する段階です。
+                        </p>
+                    </div>
+                </div>
+                <div id="q2" class="quadrant bg-white p-6 rounded-xl shadow-sm border-2 border-transparent cursor-pointer">
+                    <h3 class="text-xl font-bold mb-2">象限2: 系統的誤差あり 🤔</h3>
+                    <p class="font-medium text-slate-600 mb-2">R2スコア: 高い / MAPE: 高い</p>
+                    <div class="quadrant-content">
+                         <p class="text-sm text-slate-700 leading-relaxed">
+                            <strong class="text-amber-700">診断:</strong> データの傾向は掴めているが、予測が常に高め/低めにずれている（バイアスがある）状態。スピードメーターの例がこれにあたります。<br>
+                            <strong class="text-amber-700">アクション:</strong> バイアス補正や、ズレの原因となる特徴量の見直しを検討します。
+                        </p>
+                    </div>
+                </div>
+                <div id="q3" class="quadrant bg-white p-6 rounded-xl shadow-sm border-2 border-transparent cursor-pointer">
+                    <h3 class="text-xl font-bold mb-2">象限3: 安定した予測 😐</h3>
+                    <p class="font-medium text-slate-600 mb-2">R2スコア: 低い / MAPE: 低い</p>
+                    <div class="quadrant-content">
+                        <p class="text-sm text-slate-700 leading-relaxed">
+                            <strong class="text-slate-700">診断:</strong> データの変動は予測できないが、平均値に近い予測は得意な状態。予測値が安定しているため、個々の誤差は小さくなります。<br>
+                            <strong class="text-slate-700">アクション:</strong> 安定性の監視や異常検知には使える可能性がありますが、最適化には不向きです。
+                        </p>
+                    </div>
+                </div>
+                <div id="q4" class="quadrant bg-white p-6 rounded-xl shadow-sm border-2 border-transparent cursor-pointer">
+                    <h3 class="text-xl font-bold mb-2">象限4: 改善が必要 👎</h3>
+                    <p class="font-medium text-slate-600 mb-2">R2スコア: 低い / MAPE: 高い</p>
+                     <div class="quadrant-content">
+                        <p class="text-sm text-slate-700 leading-relaxed">
+                            <strong class="text-red-700">診断:</strong> データの傾向も捉えられず、個々の予測も不正確な状態。モデルとして機能していません。<br>
+                            <strong class="text-red-700">アクション:</strong> 特徴量の追加、モデルの変更、データ品質の見直しなど、抜本的な改善が必要です。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="other-metrics" class="mb-16 bg-white p-8 rounded-xl shadow-sm border border-stone-200">
+            <h2 class="text-2xl font-bold text-cyan-700 mb-4">その他の補完的な指標</h2>
+            <p class="text-slate-700 mb-6">MAPEが使えない場合（実測値に0があるなど）や、別の観点から評価したい場合に有効です。これらの指標は、誤差をパーセントではなく、予測値と同じ単位（例: ℃, mm, 円）で示します。</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-bold text-lg text-slate-800">MAE (平均絶対誤差)</h3>
+                    <p class="text-slate-600">純粋な「予測誤差の大きさの平均値」。誤差を直感的に把握したい場合に最適です。「平均で5mmずれる」のように理解できます。</p>
+                </div>
+                <div>
+                    <h3 class="font-bold text-lg text-slate-800">RMSE (二乗平均平方根誤差)</h3>
+                    <p class="text-slate-600">誤差を二乗するため、「大きな誤差（外れ値）」の影響をより強く受ける特性があります。「時々、とんでもなく大きく外れる予測」を絶対に避けたい場合に有効です。</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="conclusion" class="bg-cyan-700 text-white p-8 rounded-xl shadow-lg">
+            <h2 class="text-2xl font-bold mb-4">結論：実践的な評価フロー</h2>
+            <ol class="list-decimal list-inside space-y-2 text-cyan-50">
+                <li><strong class="font-semibold text-white">まずR2スコアを見る:</strong> モデルがそもそもデータの傾向を捉えられているかを確認する。</li>
+                <li><strong class="font-semibold text-white">次にMAPEやMAEで誤差の大きさを確認:</strong> 予測のズレが、ビジネス上の許容範囲に収まっているかを確認する。</li>
+                <li><strong class="font-semibold text-white">4象限で診断:</strong> 2つの指標を組み合わせてモデルの「性格」と「健康状態」を診断し、次のアクションを決定する。</li>
+                <li><strong class="font-semibold text-white">必要に応じてRMSEを確認:</strong> 大きな外れ値を特に問題視するべき状況か、という観点で評価を補強する。</li>
+            </ol>
+        </section>
+    </div>
+
+    <script>
+        const dataPatternSelector = document.getElementById('data-pattern-selector');
+        const regressionTypeSelector = document.getElementById('regression-type-selector');
+        const biasSlider = document.getElementById('bias-slider');
+        const noiseSlider = document.getElementById('noise-slider');
+        const r2ValueEl = document.getElementById('r2-value');
+        const mapeValueEl = document.getElementById('mape-value');
+        const maeValueEl = document.getElementById('mae-value');
+        const rmseValueEl = document.getElementById('rmse-value');
+        const quadrants = document.querySelectorAll('.quadrant');
+
+        const ctx = document.getElementById('scatterPlot').getContext('2d');
+        const scatterPlot = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    {
+                        label: 'データ点',
+                        data: [],
+                        backgroundColor: 'rgba(8, 145, 178, 0.6)',
+                        borderColor: 'rgba(8, 145, 178, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: '回帰曲線',
+                        data: [],
+                        type: 'line',
+                        fill: false,
+                        borderColor: 'rgba(234, 179, 8, 1)',
+                        borderWidth: 3,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { title: { display: true, text: '実測値' } },
+                    y: { title: { display: true, text: '予測値' } }
+                }
+            }
+        });
+
+        function calculateMetrics(actuals, predictions) {
+            const n = actuals.length;
+            if (n === 0) return { r2: 0, mape: 0, mae: 0, rmse: 0 };
+            
+            const sumY = actuals.reduce((a, b) => a + b, 0);
+            const meanY = sumY / n;
+            
+            let ssRes = 0;
+            let ssTot = 0;
+            let sumAe = 0;
+            let sumApe = 0;
+            let sumSe = 0;
+            
+            for (let i = 0; i < n; i++) {
+                const error = actuals[i] - predictions[i];
+                ssRes += error * error;
+                ssTot += (actuals[i] - meanY) * (actuals[i] - meanY);
+                sumAe += Math.abs(error);
+                if (actuals[i] !== 0) {
+                    sumApe += Math.abs(error / actuals[i]);
+                }
+                sumSe += error * error;
+            }
+            if (ssTot === 0) return {r2: 0, mape: (sumApe / n) * 100, mae: sumAe / n, rmse: Math.sqrt(sumSe / n)};
+
+            const r2 = 1 - (ssRes / ssTot);
+            const mape = (sumApe / n) * 100;
+            const mae = sumAe / n;
+            const rmse = Math.sqrt(sumSe / n);
+
+            return { r2, mape, mae, rmse };
+        }
+        
+        function linearRegression(x, y) {
+            const n = x.length;
+            let sx = 0, sy = 0, sxy = 0, sxx = 0;
+            for(let i = 0; i < n; i++) {
+                sx += x[i];
+                sy += y[i];
+                sxy += x[i] * y[i];
+                sxx += x[i] * x[i];
+            }
+            const m = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+            const b = (sy - m * sx) / n;
+            return { m, b };
+        }
+        
+        function solve3x3(A, b) {
+            const detA = A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) -
+                         A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) +
+                         A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
+
+            if (Math.abs(detA) < 1e-10) return null;
+
+            const detAc = b[0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) -
+                          A[0][1] * (b[1] * A[2][2] - A[1][2] * b[2]) +
+                          A[0][2] * (b[1] * A[2][1] - A[1][1] * b[2]);
+
+            const detAb = A[0][0] * (b[1] * A[2][2] - A[1][2] * b[2]) -
+                          b[0] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) +
+                          A[0][2] * (A[1][0] * b[2] - b[1] * A[2][0]);
+                          
+            const detAa = A[0][0] * (A[1][1] * b[2] - b[1] * A[2][1]) -
+                          A[0][1] * (A[1][0] * b[2] - b[1] * A[2][0]) +
+                          b[0] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
+
+            const c = detAc / detA;
+            const b_coeff = detAb / detA;
+            const a = detAa / detA;
+            
+            return { a, b: b_coeff, c };
+        }
+
+        function polynomialRegression(x, y) {
+            const n = x.length;
+            let sumX = 0, sumX2 = 0, sumX3 = 0, sumX4 = 0;
+            let sumY = 0, sumXY = 0, sumX2Y = 0;
+
+            for(let i = 0; i < n; i++) {
+                const xi = x[i];
+                const yi = y[i];
+                const xi2 = xi * xi;
+                const xi3 = xi2 * xi;
+                const xi4 = xi3 * xi;
+                
+                sumX += xi;
+                sumX2 += xi2;
+                sumX3 += xi3;
+                sumX4 += xi4;
+                sumY += yi;
+                sumXY += xi * yi;
+                sumX2Y += xi2 * yi;
+            }
+
+            const A = [
+                [n, sumX, sumX2],
+                [sumX, sumX2, sumX3],
+                [sumX2, sumX3, sumX4]
+            ];
+            const B = [sumY, sumXY, sumX2Y];
+            
+            return solve3x3(A, B);
+        }
+
+        function update() {
+            const dataPattern = dataPatternSelector.value;
+            let initialData;
+            const numPoints = 50;
+            const xValues = Array.from({ length: numPoints }, (_, i) => i + 1);
+            
+            if (dataPattern === 'strong_trend') {
+                 initialData = {
+                    x: xValues,
+                    y: xValues.map(x => 50 + 2 * x + 0.05 * x * x + (Math.random() - 0.5) * 50)
+                };
+            } else if (dataPattern === 'moderate_trend') {
+                initialData = {
+                    x: xValues,
+                    y: xValues.map(x => 100 + 3 * x + (Math.random() - 0.5) * 150)
+                };
+            } else { // cluster_no_trend
+                initialData = {
+                    x: xValues,
+                    y: xValues.map(() => 150 + (Math.random() - 0.5) * 40)
+                };
+            }
+
+            const bias = parseFloat(biasSlider.value);
+            const noise = parseFloat(noiseSlider.value);
+            const regressionType = regressionTypeSelector.value;
+
+            const modifiedY = initialData.y.map(val => val + bias + (Math.random() - 0.5) * noise);
+
+            let predictions;
+            let regressionLineData;
+            
+            const minX = Math.min(...initialData.x);
+            const maxX = Math.max(...initialData.x);
+
+            if (regressionType === 'linear') {
+                scatterPlot.data.datasets[1].label = '回帰直線';
+                const { m, b } = linearRegression(initialData.x, modifiedY);
+                predictions = initialData.x.map(xVal => m * xVal + b);
+                regressionLineData = [
+                    { x: minX, y: m * minX + b },
+                    { x: maxX, y: m * maxX + b }
+                ];
+            } else if (regressionType === 'poly2') {
+                scatterPlot.data.datasets[1].label = '回帰曲線 (2次)';
+                const coeffs = polynomialRegression(initialData.x, modifiedY);
+                if (coeffs) {
+                     const { a, b, c } = coeffs;
+                     predictions = initialData.x.map(xVal => a * xVal * xVal + b * xVal + c);
+                     
+                     regressionLineData = [];
+                     for(let xVal = minX; xVal <= maxX; xVal += (maxX - minX) / 50) {
+                         regressionLineData.push({x: xVal, y: a * xVal * xVal + b * xVal + c});
+                     }
+                } else {
+                     predictions = modifiedY.map(() => modifiedY.reduce((a,b) => a+b,0)/modifiedY.length);
+                     regressionLineData = [];
+                }
+            }
+
+            const metrics = calculateMetrics(modifiedY, predictions);
+
+            r2ValueEl.textContent = metrics.r2 > -2 ? metrics.r2.toFixed(2) : 'N/A';
+            mapeValueEl.textContent = metrics.mape < 1000 ? metrics.mape.toFixed(1) : '>1k';
+            maeValueEl.textContent = metrics.mae.toFixed(1);
+            rmseValueEl.textContent = metrics.rmse.toFixed(1);
+            
+            scatterPlot.data.datasets[0].data = initialData.x.map((xVal, i) => ({ x: xVal, y: modifiedY[i] }));
+            scatterPlot.data.datasets[1].data = regressionLineData;
+
+            scatterPlot.options.scales.x.title.text = '入力値';
+            scatterPlot.options.scales.y.title.text = '出力値';
+            
+            scatterPlot.update();
+            updateQuadrantHighlight(metrics.r2, metrics.mape);
+        }
+
+        function updateQuadrantHighlight(r2, mape) {
+            quadrants.forEach(q => q.classList.remove('active'));
+            
+            const r2High = r2 >= 0.7;
+            const mapeLow = mape < 10;
+
+            if (r2High && mapeLow) {
+                document.getElementById('q1').classList.add('active');
+            } else if (r2High && !mapeLow) {
+                document.getElementById('q2').classList.add('active');
+            } else if (!r2High && mapeLow) {
+                document.getElementById('q3').classList.add('active');
+            } else {
+                document.getElementById('q4').classList.add('active');
+            }
+        }
+        
+        quadrants.forEach(quadrant => {
+            quadrant.addEventListener('click', () => {
+                quadrant.classList.toggle('expanded');
+            });
+        });
+
+        dataPatternSelector.addEventListener('change', update);
+        regressionTypeSelector.addEventListener('change', update);
+        biasSlider.addEventListener('input', update);
+        noiseSlider.addEventListener('input', update);
+
+        window.onload = update;
+    </script>
+
+</body>
+</html>
+
