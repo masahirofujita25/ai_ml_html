@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>インタラクティブR&Dフロー (MIプラットフォーム版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Stone, Slate, Teal, Amber) -->
+    <!-- Application Structure Plan: A single-page, scrollable application structured around the 3-phase R&D workflow from the report. A sticky top navigation/stepper allows users to jump between phases and highlights the current section on scroll. Each phase is an interactive section featuring dynamic charts (Chart.js) and explanatory text to guide the user through the process, transforming the static document into an engaging, educational journey. This structure was chosen because the source report's linear flow is its core strength, and an interactive stepper enhances this guided experience. -->
+    <!-- Visualization & Content Choices: Phase 1 Feature Importance -> Goal: Compare -> Interactive Bar Chart (Chart.js) -> Hover for details -> Justifies importance ranking visually. Phase 2 Methods -> Goal: Organize -> Clickable Cards (HTML/JS) -> Show/hide details -> Keeps UI clean. Phase 3 Factor Effects -> Goal: Compare -> Interactive Bar Chart (Chart.js) -> Hover for details -> Clearly visualizes the final model's coefficients for interpretability. All choices prioritize interactivity and clarity over static presentation. The PDP section has been removed as requested. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8fafc; 
+        }
+        .phase-step {
+            transition: all 0.3s ease;
+        }
+        .phase-step.active {
+            background-color: #0d9488;
+            color: white;
+            transform: scale(1.05);
+        }
+        .phase-step.active .phase-number {
+            background-color: white;
+            color: #0d9488;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .model-card {
+            background-color: #f1f5f9;
+            border-left: 4px solid #14b8a6;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="text-slate-700">
+
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 text-center">データ駆動型R&Dのための機械学習モデル使い分けフロー</h1>
+            <nav class="mt-4">
+                <div class="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-0">
+                    <a href="#phase1" class="phase-step flex items-center p-3 rounded-lg shadow-sm bg-white w-full md:w-auto md:rounded-r-none" data-phase="phase1">
+                        <span class="phase-number flex items-center justify-center w-8 h-8 rounded-full bg-teal-600 text-white font-bold text-sm mr-3">1</span>
+                        <span class="font-semibold text-slate-700">初期探索</span>
+                    </a>
+                    <div class="text-teal-500 font-bold text-2xl hidden md:block mx-2">→</div>
+                    <a href="#phase2" class="phase-step flex items-center p-3 rounded-lg shadow-sm bg-white w-full md:w-auto md:rounded-none" data-phase="phase2">
+                        <span class="phase-number flex items-center justify-center w-8 h-8 rounded-full bg-teal-600 text-white font-bold text-sm mr-3">2</span>
+                        <span class="font-semibold text-slate-700">データ拡充</span>
+                    </a>
+                     <div class="text-teal-500 font-bold text-2xl hidden md:block mx-2">→</div>
+                    <a href="#phase3" class="phase-step flex items-center p-3 rounded-lg shadow-sm bg-white w-full md:w-auto md:rounded-l-none" data-phase="phase3">
+                        <span class="phase-number flex items-center justify-center w-8 h-8 rounded-full bg-teal-600 text-white font-bold text-sm mr-3">3</span>
+                        <span class="font-semibold text-slate-700">モデル精緻化と理解</span>
+                    </a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <section id="phase1" class="mb-20 pt-16 -mt-16">
+            <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-slate-200">
+                <h2 class="text-3xl font-bold text-teal-700 mb-4">フェーズ1: 初期探索 - 小さなデータで当たりを付ける</h2>
+                <p class="text-lg mb-6 text-slate-600">この初期フェーズの目的は、限られたデータからどのパラメータが結果に最も影響を与えそうか、大まかな傾向（当たり）を掴むことです。ここでは複数の非線形モデルを試し、多角的にデータの特性を捉えます。</p>
+
+                <div class="grid md:grid-cols-2 gap-8 items-start">
+                    <div>
+                        <h3 class="text-xl font-semibold text-slate-800 mb-4">🤖 おすすめの手法</h3>
+                        <div class="space-y-4">
+                            <div class="model-card">
+                                <h4 class="font-bold text-slate-800">Random Forest / XGBoost</h4>
+                                <p class="text-sm text-slate-600">パラメータ間の複雑な交互作用を自動で発見。まず試すべき本命モデルです。</p>
+                            </div>
+                            <div class="model-card">
+                                <h4 class="font-bold text-slate-800">Support Vector Regression (SVR)</h4>
+                                <p class="text-sm text-slate-600">決定木とは異なるアプローチで非線形関係を捉え、小さなデータでも安定しやすいです。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-4 rounded-lg border">
+                        <h4 class="font-semibold text-center mb-2">📊 アウトプット: 特徴量の重要度</h4>
+                        <div class="chart-container">
+                            <canvas id="featureImportanceChart"></canvas>
+                        </div>
+                        <p class="text-xs text-center text-slate-500 mt-2">各パラメータがモデルの予測にどれだけ貢献したかを示します。バーにカーソルを合わせると詳細が表示されます。</p>
+                    </div>
+                </div>
+                
+                <div class="mt-8 text-center bg-teal-50 border-l-4 border-teal-500 p-4 rounded-r-lg">
+                    <h4 class="font-bold text-teal-800">🎬 次のアクション</h4>
+                    <p class="text-teal-700">特徴量の重要度を基に、「温度と成分Aが特に重要そうだ」といった仮説を立て、次のフェーズで検証すべきパラメータを絞り込みます。</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="phase2" class="mb-20 pt-16 -mt-16">
+            <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-slate-200">
+                <h2 class="text-3xl font-bold text-teal-700 mb-4">フェーズ2: データ拡充 - 賢くデータを増やす</h2>
+                <p class="text-lg mb-6 text-slate-600">このフェーズでは、フェーズ1で得た知見を基に、最も情報価値の高い実験データを効率的に追加します。予測の「不確実性」を定量化できるモデルが鍵となります。</p>
+
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-slate-50 p-6 rounded-lg border">
+                        <h3 class="text-xl font-semibold text-slate-800 mb-2">🤖 おすすめの手法</h3>
+                        <div class="model-card">
+                            <h4 class="font-bold text-slate-800">Gaussian Process Regression (GPR)</h4>
+                            <p class="text-sm text-slate-600">予測値とその「不確実性」を同時に出力。ベイズ最適化の中核エンジンとして、次の効率的な実験計画を支援します。</p>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 p-6 rounded-lg border">
+                        <h3 class="text-xl font-semibold text-slate-800 mb-2">🎯 アプローチ</h3>
+                        <p class="text-slate-600"><span class="font-bold text-teal-600">ベイズ最適化</span>を実行し、次に実験すべき有望な条件を探索するか、<span class="font-bold text-teal-600">実験計画法(DoE)</span>で重要パラメータを網羅的に調査します。</p>
+                    </div>
+                </div>
+
+                 <div class="mt-8 text-center bg-teal-50 border-l-4 border-teal-500 p-4 rounded-r-lg">
+                    <h4 class="font-bold text-teal-800">🎬 次のアクション</h4>
+                    <p class="text-teal-700">計画された追加実験を行いデータセットを拡充します。これにより、質の高いデータセットが完成し、次の分析へ進みます。</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="phase3" class="pt-16 -mt-16">
+            <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-slate-200">
+                <h2 class="text-3xl font-bold text-teal-700 mb-4">フェーズ3: モデル精緻化と理解 - 本質に迫る</h2>
+                <p class="text-lg mb-6 text-slate-600">最終フェーズでは、拡充されたデータセットを使い、予測精度と解釈性を両立させたモデルを構築します。得られる数式が、開発の「設計指針」となります。</p>
+                
+                <div class="grid md:grid-cols-2 gap-8 items-start">
+                    <div>
+                        <h3 class="text-xl font-semibold text-slate-800 mb-4">🤖 おすすめの手法</h3>
+                        <div class="space-y-4">
+                             <div class="model-card">
+                                <h4 class="font-bold text-slate-800">Linear Regression</h4>
+                                <p class="text-sm text-slate-600">全体の線形傾向を把握するベースラインモデル。</p>
+                            </div>
+                            <div class="model-card">
+                                <h4 class="font-bold text-slate-800">Polynomial Lasso / Ridge</h4>
+                                <p class="text-sm text-slate-600">非線形性を捉えつつ過学習を抑制。解釈性と精度のバランスが良く、本命となりやすいモデルです。</p>
+                            </div>
+                            <div class="model-card">
+                                <h4 class="font-bold text-slate-800">Simple Bayesian Ridge</h4>
+                                <p class="text-sm text-slate-600">Ridge回帰にベイズ的アプローチを導入。より頑健なモデルを構築したい場合に有効です。</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border">
+                        <h4 class="font-semibold text-center mb-2">📊 アウトプット: 要因効果の可視化</h4>
+                        <div class="mt-4 bg-slate-800 text-white p-4 rounded-lg font-mono text-sm mb-4">
+                            <p class="text-gray-300 mb-2">// 得られる回帰式（設計指針）の例</p>
+                            <span class="text-sky-300">性能</span> = <span class="text-amber-300">15.2</span> + <span class="text-amber-300">2.8</span>*<span class="text-green-300">[温度]</span> - <span class="text-amber-300">0.9</span>*<span class="text-green-300">[圧力]</span> ...
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="factorEffectsChart"></canvas>
+                        </div>
+                        <p class="text-xs text-center text-slate-500 mt-2">最終モデルの係数。性能への影響の大きさと向きを示します。</p>
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center bg-teal-50 border-l-4 border-teal-500 p-4 rounded-r-lg">
+                    <h4 class="font-bold text-teal-800">🎬 次のアクション</h4>
+                    <p class="text-teal-700">完成した回帰式を、実際の製品開発におけるシミュレーションや条件最適化、コスト計算などに活用します。</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const chartOptions = {
+                maintainAspectRatio: false,
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: '#0f766e',
+                        titleFont: { size: 14, weight: 'bold' },
+                        bodyFont: { size: 12 },
+                        padding: 10,
+                        cornerRadius: 4,
+                        displayColors: false
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            font: {
+                                family: "'Inter', sans-serif",
+                            }
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: '#e2e8f0'
+                        },
+                        ticks: {
+                            font: {
+                                family: "'Inter', sans-serif",
+                            }
+                        },
+                        beginAtZero: true
+                    }
+                }
+            };
+            
+            const featureImportanceData = {
+                labels: ['温度', '成分A', '圧力', '硬化時間', '触媒タイプ'],
+                datasets: [{
+                    label: '重要度',
+                    data: [0.45, 0.25, 0.15, 0.10, 0.05],
+                    backgroundColor: ['#0d9488', '#0d9488', '#14b8a6', '#5eead4', '#99f6e4'],
+                    borderRadius: 4,
+                    borderWidth: 0
+                }]
+            };
+
+            const featureImportanceCtx = document.getElementById('featureImportanceChart').getContext('2d');
+            new Chart(featureImportanceCtx, {
+                type: 'bar',
+                data: featureImportanceData,
+                options: { ...chartOptions, indexAxis: 'y' }
+            });
+
+            const factorEffectsData = {
+                labels: ['温度', '成分A*温度', '圧力', '成分A', '硬化時間', '温度^2'],
+                datasets: [{
+                    label: '係数',
+                    data: [2.8, 1.2, -0.9, 0.5, 0.2, -0.15],
+                    backgroundColor: d => d.raw >= 0 ? '#0d9488' : '#f43f5e',
+                    borderRadius: 4
+                }]
+            };
+
+            const factorEffectsCtx = document.getElementById('factorEffectsChart').getContext('2d');
+            new Chart(factorEffectsCtx, {
+                type: 'bar',
+                data: factorEffectsData,
+                options: chartOptions
+            });
+
+            const phaseSections = document.querySelectorAll('section[id^="phase"]');
+            const navLinks = document.querySelectorAll('a.phase-step');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const id = entry.target.getAttribute('id');
+                        navLinks.forEach(link => {
+                            link.classList.toggle('active', link.dataset.phase === id);
+                        });
+                    }
+                });
+            }, { rootMargin: "-50% 0px -50% 0px" });
+
+            phaseSections.forEach(section => {
+                observer.observe(section);
+            });
+        });
+    </script>
+</body>
+</html>
+
