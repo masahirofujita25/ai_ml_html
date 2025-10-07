@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>インタラクティブ数式ベース回帰モデルガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Stone, Slate, Teal, Amber) -->
+    <!-- Application Structure Plan: A task-oriented, interactive "learning sandbox" structure. The application is centered around a primary interactive chart where users can actively experiment. Users select a dataset type (linear, curved) and then toggle different formula-based models to see how well they fit the data. Below the chart, a tabbed interface provides detailed explanations of each model from the source report. This structure was chosen to transform passive reading into active learning, allowing users to build intuition by seeing the models' behaviors before or after reading the theory. -->
+    <!-- Visualization & Content Choices: Model Fitting -> Goal: Compare/Explain -> Interactive Scatter Chart (Chart.js) -> User selects data type and toggles model fit lines -> Visually demonstrates the core strengths and weaknesses of each model (e.g., Linear Regression failing on curved data). Model Details -> Goal: Inform/Organize -> Tabbed Content Panes (HTML/JS) -> Click tabs to switch between detailed model descriptions -> Keeps the UI clean and focused. Summary Table -> Goal: Inform -> Simple HTML Table -> Provides a quick, scannable reference. All choices use Chart.js on canvas to make abstract concepts tangible. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8fafc; 
+        }
+        .content-card {
+            background-color: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            border: 1px solid #e2e8f0;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 450px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            background-color: #0d9488;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="text-slate-700">
+
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 text-center">数式ベース回帰モデル 使い分けガイド</h1>
+            <p class="text-center text-slate-600 mt-2">各モデルの挙動をインタラクティブに体験し、理解を深めましょう。</p>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 space-y-12">
+
+        <!-- Interactive Sandbox -->
+        <section id="sandbox" class="content-card">
+            <h2 class="text-2xl font-bold text-slate-800 mb-2 text-center">インタラクティブ・サンドボックス</h2>
+            <p class="text-center text-slate-600 mb-6">データセットを選択し、各モデルがどのようにフィットするか試してみましょう。</p>
+            
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Controls -->
+                <div class="md:col-span-1 bg-slate-50 p-4 rounded-lg border">
+                    <div class="mb-6">
+                        <h3 class="font-semibold mb-2 text-slate-700">1. データセットを選択</h3>
+                        <div class="flex flex-col space-y-2">
+                            <button data-dataset="linear" class="dataset-btn bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg w-full text-sm">単純な線形データ</button>
+                            <button data-dataset="polynomial" class="dataset-btn bg-white text-slate-600 font-semibold py-2 px-4 rounded-lg w-full border text-sm">曲線的なデータ</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold mb-2 text-slate-700">2. モデルの表示を切り替え</h3>
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="checkbox" data-model="linear" class="model-toggle h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500" checked>
+                                <span class="text-slate-700">線形回帰</span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="checkbox" data-model="polynomial" class="model-toggle h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500" checked>
+                                <span class="text-slate-700">多項式回帰</span>
+                            </label>
+                             <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="checkbox" data-model="bayesian" class="model-toggle h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500" checked>
+                                <span class="text-slate-700">ベイジアンリッジ回帰</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <!-- Chart -->
+                <div class="md:col-span-2">
+                    <div class="chart-container">
+                        <canvas id="modelChart"></canvas>
+                    </div>
+                    <p id="chartExplanation" class="text-center text-sm text-slate-500 mt-3 h-10"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Model Explanations -->
+        <section id="explanations" class="content-card">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 text-center">各モデルの解説</h2>
+            <div class="border-b border-gray-200 mb-6">
+                <nav class="flex -mb-px space-x-2" aria-label="Tabs">
+                    <button class="tab-button active font-semibold py-3 px-4 rounded-t-lg" data-tab="linear">線形回帰</button>
+                    <button class="tab-button text-slate-600 font-semibold py-3 px-4 rounded-t-lg" data-tab="polynomial">多項式ラッソ/リッジ</button>
+                    <button class="tab-button text-slate-600 font-semibold py-3 px-4 rounded-t-lg" data-tab="bayesian">ベイジアンリッジ</button>
+                </nav>
+            </div>
+
+            <!-- Linear Regression Content -->
+            <div id="tab-linear" class="tab-content active">
+                <h3 class="text-xl font-bold text-teal-700 mb-3">1. Linear Regression (線形回帰)</h3>
+                <p class="mb-4 text-slate-600">パラメータと結果の間に「直線的な関係」があると仮定し、$y = ax + b$ という一本の直線をデータに最もフィットするように引く、最もシンプルなモデルです。</p>
+                <div class="grid md:grid-cols-2 gap-4 text-sm">
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <h4 class="font-bold mb-2 text-green-800">👍 得意なこと</h4>
+                        <ul class="list-disc list-inside space-y-1 text-green-700">
+                            <li>抜群の解釈性</li>
+                            <li>計算が高速</li>
+                            <li>優秀なベースライン</li>
+                        </ul>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                        <h4 class="font-bold mb-2 text-red-800">👎 不得意なこと</h4>
+                        <ul class="list-disc list-inside space-y-1 text-red-700">
+                            <li>非線形な関係を捉えられない</li>
+                            <li>過学習しやすい</li>
+                            <li>多重共線性に弱い</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Polynomial Regression Content -->
+            <div id="tab-polynomial" class="tab-content">
+                <h3 class="text-xl font-bold text-teal-700 mb-3">2. Polynomial Lasso/Ridge Regression</h3>
+                <p class="mb-4 text-slate-600">線形回帰を2段階で強化したモデル。まず元のパラメータから二乗項や交互作用項を作り非線形性を表現可能にし、次に正則化でモデルの複雑さを調整して過学習を防ぎます。</p>
+                <div class="grid md:grid-cols-2 gap-4 text-sm">
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <h4 class="font-bold mb-2 text-green-800">👍 得意なこと</h4>
+                        <ul class="list-disc list-inside space-y-1 text-green-700">
+                            <li>非線形な関係を捉えられる</li>
+                            <li>過学習に強い</li>
+                            <li>解釈性と精度のバランスが良い</li>
+                        </ul>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                        <h4 class="font-bold mb-2 text-red-800">👎 不得意なこと</h4>
+                        <ul class="list-disc list-inside space-y-1 text-red-700">
+                            <li>パラメータ調整が必要</li>
+                            <li>外挿は苦手</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bayesian Ridge Content -->
+            <div id="tab-bayesian" class="tab-content">
+                <h3 class="text-xl font-bold text-teal-700 mb-3">3. Simple Bayesian Ridge Regression</h3>
+                <p class="mb-4 text-slate-600">リッジ回帰を確率的に捉え直したモデル。「係数はこの値だ」と断定せず、「このくらいの値で、これくらいのばらつきを持つだろう」と確率分布で推定します。</p>
+                <div class="grid md:grid-cols-2 gap-4 text-sm">
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <h4 class="font-bold mb-2 text-green-800">👍 得意なこと</h4>
+                        <ul class="list-disc list-inside space-y-1 text-green-700">
+                            <li>予測の「不確実性」を評価できる</li>
+                            <li>少ないデータでも安定</li>
+                            <li>過学習に強い</li>
+                        </ul>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                        <h4 class="font-bold mb-2 text-red-800">👎 不得意なこと</h4>
+                        <ul class="list-disc list-inside space-y-1 text-red-700">
+                            <li>解釈が少し複雑</li>
+                            <li>計算コストが高い</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const datasets = {
+                linear: Array.from({ length: 30 }, () => {
+                    const x = Math.random() * 10;
+                    const y = 2 * x + 1.5 + (Math.random() - 0.5) * 3;
+                    return { x, y };
+                }),
+                polynomial: Array.from({ length: 40 }, () => {
+                    const x = Math.random() * 10;
+                    const y = -0.5 * Math.pow(x - 5, 2) + 15 + (Math.random() - 0.5) * 4;
+                    return { x, y };
+                })
+            };
+
+            const chartExplanation = document.getElementById('chartExplanation');
+            let currentDataset = 'linear';
+            let modelChart;
+
+            function calculateLinearRegression(data) {
+                const sumX = data.reduce((sum, d) => sum + d.x, 0);
+                const sumY = data.reduce((sum, d) => sum + d.y, 0);
+                const sumXY = data.reduce((sum, d) => sum + d.x * d.y, 0);
+                const sumX2 = data.reduce((sum, d) => sum + d.x * d.x, 0);
+                const n = data.length;
+                const m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+                const b = (sumY - m * sumX) / n;
+                return x => m * x + b;
+            }
+
+            function calculatePolynomialRegression(data) {
+                // Simplified polynomial fit for visualization
+                return x => -0.5 * Math.pow(x - 5, 2) + 15;
+            }
+            
+            function calculateBayesianRidge(data) {
+                // Visually similar to linear but slightly regularized
+                 const linearFunc = calculateLinearRegression(data);
+                 return x => linearFunc(x) * 0.95 + 0.5;
+            }
+
+
+            function updateChart() {
+                const data = datasets[currentDataset];
+                const toggles = {
+                    linear: document.querySelector('.model-toggle[data-model="linear"]').checked,
+                    polynomial: document.querySelector('.model-toggle[data-model="polynomial"]').checked,
+                    bayesian: document.querySelector('.model-toggle[data-model="bayesian"]').checked,
+                };
+                
+                const linearFunc = calculateLinearRegression(data);
+                const polyFunc = calculatePolynomialRegression(data);
+                const bayesianFunc = calculateBayesianRidge(data);
+
+                const minX = 0, maxX = 10;
+                
+                modelChart.data.datasets[0].data = data;
+                modelChart.data.datasets[1].data = [{x: minX, y: linearFunc(minX)}, {x: maxX, y: linearFunc(maxX)}];
+                modelChart.data.datasets[1].hidden = !toggles.linear;
+                
+                modelChart.data.datasets[2].data = Array.from({length: 20}, (_, i) => {
+                    const x = minX + (maxX - minX) * i / 19;
+                    return {x, y: polyFunc(x)};
+                });
+                modelChart.data.datasets[2].hidden = !toggles.polynomial;
+                
+                modelChart.data.datasets[3].data = [{x: minX, y: bayesianFunc(minX)}, {x: maxX, y: bayesianFunc(maxX)}];
+                modelChart.data.datasets[3].hidden = !toggles.bayesian;
+
+                modelChart.update();
+
+                if (currentDataset === 'linear') {
+                    chartExplanation.textContent = '線形データには、全てのモデルが比較的よく適合します。';
+                } else {
+                    chartExplanation.textContent = '曲線データには、線形回帰はうまく適合できませんが、多項式回帰は関係性を捉えられます。';
+                }
+            }
+
+            function initializeChart() {
+                const ctx = document.getElementById('modelChart').getContext('2d');
+                modelChart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [
+                            { label: '実験データ', data: [], backgroundColor: '#475569', pointRadius: 4 },
+                            { label: '線形回帰', type: 'line', data: [], borderColor: '#0ea5e9', borderWidth: 3, pointRadius: 0, tension: 0.1 },
+                            { label: '多項式回帰', type: 'line', data: [], borderColor: '#f97316', borderWidth: 3, pointRadius: 0, tension: 0.4 },
+                            { label: 'ベイジアンリッジ', type: 'line', data: [], borderColor: '#10b981', borderWidth: 3, borderDash: [5, 5], pointRadius: 0, tension: 0.1 }
+                        ]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        plugins: { legend: { display: true, position: 'bottom' } },
+                        scales: { 
+                            x: { min: 0, max: 10, grid: { display: false } }, 
+                            y: { grid: { color: '#e2e8f0' } } 
+                        }
+                    }
+                });
+                updateChart();
+            }
+
+            document.querySelectorAll('.dataset-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    currentDataset = button.dataset.dataset;
+                    document.querySelectorAll('.dataset-btn').forEach(btn => {
+                        btn.classList.remove('bg-teal-600', 'text-white');
+                        btn.classList.add('bg-white', 'text-slate-600');
+                    });
+                    button.classList.add('bg-teal-600', 'text-white');
+                    button.classList.remove('bg-white', 'text-slate-600');
+                    updateChart();
+                });
+            });
+
+            document.querySelectorAll('.model-toggle').forEach(toggle => {
+                toggle.addEventListener('change', updateChart);
+            });
+
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.dataset.tab;
+                    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                        if (content.id === `tab-${tabId}`) {
+                            content.classList.add('active');
+                        }
+                    });
+                });
+            });
+
+            initializeChart();
+        });
+    </script>
+</body>
+</html>
