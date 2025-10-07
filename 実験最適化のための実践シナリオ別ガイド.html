@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>実験最適化のためのインタラクティブガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chosen Palette: Calm Teak -->
+    <!-- Application Structure Plan: レポートの静的な内容を、ユーザーが自身の状況に合わせて対話的に進めることができる「インタラクティブ・ウィザード」形式のSPAとして再設計しました。ユーザーは一連の簡単な質問に答えることで、7つの複雑なシナリオの中から自分に最も関連性の高いアプローチに直接たどり着くことができます。この構造は、全ての情報を一度に読む必要があるレポート形式よりも、ユーザーの認知負荷を軽減し、迅速な意思決定を支援するために選択されました。ウィザードの後には、補足情報として「高度なシナリオ」をアコーディオン形式で、全シナリオの概要をテーブルで配置し、全体像の確認も容易にしています。 -->
+    <!-- Visualization & Content Choices: レポート内容は概念的であるため、データチャートの代わりに、構造化されたHTMLとTailwind CSSを用いて視覚的な階層とインタラクティブな要素を構築しました。意思決定フローは、ボタンクリックで動的に表示が変わる対話型の質問形式（Goal: Guide）で実現。各シナリオ（A〜G）は、アイコン付きのカード（Goal: Inform）で提示し、情報を整理。補足的な高度なシナリオは、アコーディオンUI（Goal: Organize）で表示し、情報の過多を防ぎます。最後に全体像を把握できるようサマリーテーブル（Goal: Compare）を配置しました。これにより、ユーザーは能動的に情報を探索でき、理解が深まります。 -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #fdfcfb;
+            color: #3f3c3a;
+        }
+        .wizard-card, .result-card, .accordion-item {
+            transition: all 0.3s ease-in-out;
+            transform-origin: top;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+        .accordion-item.open .accordion-content {
+            max-height: 500px;
+        }
+        .accordion-item.open .accordion-arrow {
+            transform: rotate(180deg);
+        }
+        .btn {
+            transition: all 0.2s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800">
+    <div class="container mx-auto max-w-5xl p-4 sm:p-6 md:p-8">
+        
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold text-teal-800">実験最適化のための実践シナリオ別ガイド</h1>
+            <p class="mt-2 text-stone-600">あなたの状況に最適なアプローチを見つけましょう。</p>
+        </header>
+
+        <main>
+            <section id="step-0" class="mb-12 p-6 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg shadow-sm">
+                <h2 class="text-xl font-bold text-amber-900 mb-3 flex items-center">
+                    <span class="text-2xl mr-3">🚦</span> Step 0: すべての前提となる最重要ステップ
+                </h2>
+                <div class="space-y-4 text-stone-700">
+                    <p><strong class="font-semibold">目的：最適化の「単一目標数値」を定義し、その妥当性を検証する</strong></p>
+                    <p>最適化アルゴリズムは、単一の数値を最大化（または最小化）することしかできません。そのため、実験の真の目的を、信頼できる単一の数値目標（ターゲット）に落とし込むことが全ての出発点となります。</p>
+                    <div class="pl-4 border-l-2 border-amber-300 space-y-2">
+                         <p>1. **直接的な測定値を目標とする場合：** 実験から直接得られる物理量（例：収率、効率、強度）をそのまま目標値とします。</p>
+                         <p>2. **複数の特徴量から目標値を計算する場合：** グラフの特徴量（例: ピーク高さ、幅）などを組み合わせて単一の目標値を計算します。（例: `ターゲット = ピーク高さ / 幅`）</p>
+                         <p>3. **定性的な評価を数値化する場合：** 専門家の「良い」「悪い」という判断を、評価項目を要素分解し重み付けすることで数値スコアに変換します。（例: `スコア = 0.6 * A + 0.4 * B - 0.2 * C`）</p>
+                    </div>
+                    <p class="font-semibold mt-4">妥当性の検証：</p>
+                    <p>定義した目標値が「本当に達成したいこと」と一致しているか、SHAPなどの解釈手法を用いて専門家のドメイン知識と矛盾がないか検証することが不可欠です。</p>
+                </div>
+            </section>
+
+            <section id="wizard" class="mb-12 p-6 bg-white rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold text-teal-800 mb-6 text-center">インタラクティブ・ウィザード</h2>
+                
+                <div id="q1" class="wizard-card text-center">
+                    <p class="text-xl mb-6 text-stone-700">まず、手元に十分な量のデータがありますか？</p>
+                    <div class="flex justify-center gap-4">
+                        <button onclick="handleAnswer('q1', 'yes')" class="btn bg-teal-600 text-white font-bold py-3 px-8 rounded-lg shadow">はい</button>
+                        <button onclick="handleAnswer('q1', 'no')" class="btn bg-stone-500 text-white font-bold py-3 px-8 rounded-lg shadow">いいえ</button>
+                    </div>
+                </div>
+
+                <div id="q2" class="wizard-card text-center hidden">
+                    <p class="text-xl mb-6 text-stone-700">そのデータで構築したモデルの精度は高いですか？</p>
+                    <div class="flex justify-center gap-4">
+                        <button onclick="handleAnswer('q2', 'yes')" class="btn bg-teal-600 text-white font-bold py-3 px-8 rounded-lg shadow">はい</button>
+                        <button onclick="handleAnswer('q2', 'no')" class="btn bg-stone-500 text-white font-bold py-3 px-8 rounded-lg shadow">いいえ</button>
+                    </div>
+                </div>
+
+                <div id="q3" class="wizard-card text-center hidden">
+                    <p class="text-xl mb-6 text-stone-700">今後の1回あたりの実験コストは高いですか？</p>
+                    <div class="flex justify-center gap-4">
+                        <button onclick="handleAnswer('q3', 'yes')" class="btn bg-teal-600 text-white font-bold py-3 px-8 rounded-lg shadow">はい</button>
+                        <button onclick="handleAnswer('q3', 'no')" class="btn bg-stone-500 text-white font-bold py-3 px-8 rounded-lg shadow">いいえ</button>
+                    </div>
+                </div>
+                
+                <div id="result-container" class="mt-8"></div>
+                
+                <div class="text-center mt-6">
+                    <button id="reset-button" onclick="resetWizard()" class="btn bg-white text-teal-700 border border-teal-700 font-semibold py-2 px-6 rounded-lg hidden">もう一度試す</button>
+                </div>
+            </section>
+
+            <section id="advanced-scenarios" class="mb-12">
+                <h2 class="text-2xl font-bold text-teal-800 mb-6 text-center">その他の高度なシナリオ</h2>
+                <div class="space-y-4">
+                    <div class="accordion-item bg-white rounded-lg shadow-md" data-scenario="E">
+                        <div class="accordion-header p-5 cursor-pointer flex justify-between items-center">
+                            <h3 class="text-lg font-semibold text-stone-800">【E】複数の目標を同時に最適化したい場合（多目的最適化）</h3>
+                            <span class="accordion-arrow text-2xl text-teal-600 transition-transform">▼</span>
+                        </div>
+                        <div class="accordion-content px-5 pb-5 text-stone-600"></div>
+                    </div>
+                    <div class="accordion-item bg-white rounded-lg shadow-md" data-scenario="F">
+                         <div class="accordion-header p-5 cursor-pointer flex justify-between items-center">
+                            <h3 class="text-lg font-semibold text-stone-800">【F】制約条件がある場合（実行不可能な領域が存在する）</h3>
+                            <span class="accordion-arrow text-2xl text-teal-600 transition-transform">▼</span>
+                        </div>
+                        <div class="accordion-content px-5 pb-5 text-stone-600"></div>
+                    </div>
+                    <div class="accordion-item bg-white rounded-lg shadow-md" data-scenario="G">
+                         <div class="accordion-header p-5 cursor-pointer flex justify-between items-center">
+                            <h3 class="text-lg font-semibold text-stone-800">【G】パラメータが非常に多い、またはカテゴリカルな変数が含まれる場合</h3>
+                             <span class="accordion-arrow text-2xl text-teal-600 transition-transform">▼</span>
+                        </div>
+                        <div class="accordion-content px-5 pb-5 text-stone-600"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="summary-table">
+                <h2 class="text-2xl font-bold text-teal-800 mb-6 text-center">全シナリオ概要</h2>
+                <div class="overflow-x-auto bg-white rounded-lg shadow-md">
+                    <table class="w-full text-left">
+                        <thead class="bg-stone-100">
+                            <tr>
+                                <th class="p-4 font-semibold">シナリオ</th>
+                                <th class="p-4 font-semibold">状況</th>
+                                <th class="p-4 font-semibold">推奨アプローチ</th>
+                                <th class="p-4 font-semibold">キーワード</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        const scenarios = {
+            A: {
+                title: '【A】モデルの精度が非常に高い場合',
+                icon: '🗺️',
+                approach: '既存モデルの逆解析',
+                description: 'モデルは現実世界を忠実に再現した「完璧な地図」です。この地図上でシミュレーションを繰り返し、最適な条件（目的地）を探し出すのが最も効率的です。実際に実験する必要はほとんどありません。'
+            },
+            B: {
+                title: '【B】モデルの精度が低い、または信頼できない場合',
+                icon: '🛠️',
+                approach: 'モデル改善のための能動学習 (Active Learning)',
+                description: '手元の地図は不正確で、信頼できません。この地図を頼りに目的地を探しても迷うだけです。今は最適値を探すのではなく、「地図のどの部分が最も曖昧か（＝モデルの予測が最も不確かか）」を探し出し、そこをピンポイントで実験してデータを補強することで、地図の精度を上げることを最優先します。'
+            },
+            C: {
+                title: '【C】実験コストが高い場合',
+                icon: '💎',
+                approach: 'ベイジアン最適化 (Bayesian Optimization)',
+                description: '1回1回の実験が非常に貴重です。過去の実験結果から「次に試すべき最も有望な一手」を賢く予測し、最小限の試行回数で最適値にたどり着くことを目指します。まさにBOが最も得意とするシナリオです。'
+            },
+            D: {
+                title: '【D】実験コストが低い場合',
+                icon: '📈',
+                approach: '実験計画法 (DOE)',
+                description: 'コストを気にせず多数の実験を行える状況です。特定の最適値を探す前に、まずは各パラメータが結果にどう影響するのか（主効果）、パラメータ間の相互作用はあるのか、といったシステムの全体像を体系的に把握することが有益です。DOEで全体像を掴んだ後、有望な領域をBOで深掘りする合わせ技も強力です。'
+            },
+            E: {
+                approach: '多目的ベイジアン最適化 や 遺伝的アルゴリズム (NSGA-IIなど)',
+                description: '「収率を最大化し、かつコストを最小化したい」のように、複数の目標がトレードオフの関係にある場合です。この場合、唯一の最適解は存在しません。目的は、トレードオフの関係を示す解の集合である**「パレートフロンティア」**を効率的に見つけ出すことになります。アルゴリズムが提示したパレートフロンティアの中から、専門家が最終的なバランス点を選択します。'
+            },
+            F: {
+                approach: '制約付きベイジアン最適化 (Constrained BO)',
+                description: '「温度Aと圧力Bを同時に高くすると危険」「コストが予算を超える」など、パラメータの組み合わせに実行不可能な制約がある場合です。このアプローチでは、最適化したい目標の代理モデルとは別に、「その条件が制約を満たすか否か」を予測するモデルも同時に構築します。そして、制約を満たすと予測される安全な領域内でのみ、次の実験点を探索します。'
+            },
+             G: {
+                approach: '部分空間法 (TuRBOなど)、進化計算アルゴリズム、特殊なカーネルを持つBO',
+                description: `
+                    <p class="mb-2"><strong>高次元(パラメータが多い)の場合:</strong> ベイジアン最適化は一般的に20次元を超えると性能が低下します（次元の呪い）。その対策として、有望な部分空間（信頼領域）に絞って最適化を行う手法や、多数の解候補を同時に進化させる進化計算が有効です。</p>
+                    <p><strong>カテゴリカル変数の場合:</strong> 「触媒A/B/C」のような数値でないパラメータが含まれる場合、それらを扱えるように設計された特殊なベイジアン最適化（特殊なカーネル関数を使用）や、同様にカテゴリカル変数を扱える進化計算が適しています。</p>
+                `
+            }
+        };
+
+        const summaryData = [
+            { id: 'A', situation: 'データ豊富 & 高精度モデル', approach: '既存モデルの逆解析', keyword: '知識の活用、デジタルツイン' },
+            { id: 'B', situation: 'データ豊富 & 低精度モデル', approach: '能動学習 (Active Learning)', keyword: '地図の修正、弱点の補強' },
+            { id: 'C', situation: 'データ少量 & 実験コスト高', approach: 'ベイジアン最適化 (BO)', keyword: '効率的な探索、貴重な一歩' },
+            { id: 'D', situation: 'データ少量 & 実験コスト低', approach: '実験計画法 (DOE)', keyword: '全体像の把握、体系的理解' },
+            { id: 'E', situation: '多目的（トレードオフ）', approach: '多目的BO / 遺伝的アルゴリズム', keyword: 'パレートフロンティア、バランス' },
+            { id: 'F', situation: '制約条件あり', approach: '制約付きBO', keyword: '安全領域の探索、実行可能性' },
+            { id: 'G', situation: '高次元 / カテゴリカル変数', approach: '部分空間法 / 進化計算', keyword: '次元削減、特殊な変数' },
+        ];
+
+        function createResultCard(scenarioKey) {
+            const scenario = scenarios[scenarioKey];
+            return `
+                <div class="result-card bg-teal-50 border-l-4 border-teal-500 rounded-r-lg p-6 shadow-lg animate-fade-in">
+                    <h3 class="text-xl font-bold text-teal-900 mb-3 flex items-center">
+                        <span class="text-3xl mr-3">${scenario.icon}</span> ${scenario.title}
+                    </h3>
+                    <div class="space-y-3 pl-4 text-stone-700">
+                        <p><strong class="font-semibold text-stone-800">推奨アプローチ:</strong> ${scenario.approach}</p>
+                        <p><strong class="font-semibold text-stone-800">考え方:</strong> ${scenario.description}</p>
+                    </div>
+                </div>
+                <style>
+                    @keyframes fade-in {
+                        from { opacity: 0; transform: translateY(10px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                    .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
+                </style>
+            `;
+        }
+
+        function handleAnswer(questionId, answer) {
+            document.getElementById(questionId).classList.add('hidden');
+            let nextStep = '';
+            let resultKey = '';
+
+            if (questionId === 'q1') {
+                nextStep = answer === 'yes' ? 'q2' : 'q3';
+            } else if (questionId === 'q2') {
+                resultKey = answer === 'yes' ? 'A' : 'B';
+            } else if (questionId === 'q3') {
+                resultKey = answer === 'yes' ? 'C' : 'D';
+            }
+
+            if (nextStep) {
+                document.getElementById(nextStep).classList.remove('hidden');
+            } else if (resultKey) {
+                document.getElementById('result-container').innerHTML = createResultCard(resultKey);
+                document.getElementById('reset-button').classList.remove('hidden');
+            }
+        }
+
+        function resetWizard() {
+            document.getElementById('q1').classList.remove('hidden');
+            document.getElementById('q2').classList.add('hidden');
+            document.getElementById('q3').classList.add('hidden');
+            document.getElementById('result-container').innerHTML = '';
+            document.getElementById('reset-button').classList.add('hidden');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const accordionItems = document.querySelectorAll('.accordion-item');
+            accordionItems.forEach(item => {
+                const header = item.querySelector('.accordion-header');
+                const content = item.querySelector('.accordion-content');
+                const scenarioKey = item.dataset.scenario;
+                const scenarioData = scenarios[scenarioKey];
+                
+                content.innerHTML = `
+                    <p><strong class="font-semibold text-stone-800">推奨アプローチ:</strong> ${scenarioData.approach}</p>
+                    <div class="mt-2">${scenarioData.description}</div>
+                `;
+
+                header.addEventListener('click', () => {
+                    const isOpen = item.classList.contains('open');
+                    accordionItems.forEach(i => i.classList.remove('open'));
+                    if (!isOpen) {
+                        item.classList.add('open');
+                    }
+                });
+            });
+
+            const tableBody = document.querySelector('#summary-table tbody');
+            summaryData.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-stone-200 hover:bg-stone-50';
+                tr.innerHTML = `
+                    <td class="p-4 font-bold text-teal-700">${row.id}</td>
+                    <td class="p-4">${row.situation}</td>
+                    <td class="p-4">${row.approach}</td>
+                    <td class="p-4">${row.keyword}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        });
+
+    </script>
+</body>
+</html>

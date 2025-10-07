@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>インタラクティブ・ガイド：材料探索の最適化手法</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: "Calm Harmony" - A palette grounded in warm neutrals (stone, slate) with distinct, complementary accent colors for GA (sky blue) and BO (teal) to ensure clarity and a supportive feel. -->
+    <!-- Application Structure Plan: The SPA is designed as a "Guided Decision Tool". It starts with the user's primary concern (trial cost) via an interactive selector. This choice dynamically reconfigures the UI, highlighting the recommended algorithm and filtering the detailed comparison. This task-oriented flow transforms a static report into a personalized consultation. -->
+    <!-- Visualization & Content Choices: Report Info: GA vs BO comparison -> Goal: Guide user choice -> Viz/Presentation: Interactive two-column layout with dynamic highlighting. -> Interaction: A central toggle switch for "Trial Cost" acts as the primary filter. Clicking it instantly applies styles to emphasize the recommended method's details and dims the alternative. This provides immediate, clear feedback. Library/Method: Vanilla JS and Tailwind CSS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: all 0.3s ease-in-out;
+            border: 1px solid #e5e7eb;
+        }
+        .highlight-ga {
+            transform: scale(1.02);
+            box-shadow: 0 10px 15px -3px rgb(59 130 246 / 0.2), 0 4px 6px -4px rgb(59 130 246 / 0.2);
+            border-color: #3b82f6;
+        }
+        .highlight-bo {
+            transform: scale(1.02);
+            box-shadow: 0 10px 15px -3px rgb(20 184 166 / 0.2), 0 4px 6px -4px rgb(20 184 166 / 0.2);
+            border-color: #14b8a6;
+        }
+        .dimmed {
+            opacity: 0.5;
+            transform: scale(0.98);
+        }
+        .switch-bg {
+            background-color: #e5e7eb;
+        }
+        .switch-handle {
+            background-color: white;
+            transform: translateX(0.125rem);
+        }
+        input:checked + .switch-bg .switch-handle {
+            transform: translateX(2.125rem);
+            background-color: #14b8a6;
+        }
+         input:not(:checked) + .switch-bg .switch-handle {
+            background-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="container mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
+
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">材料探索における最適化手法の使い分け</h1>
+            <p class="mt-2 text-lg text-slate-600">遺伝的アルゴリズム (GA) vs ベイズ最適化 (BO)</p>
+        </header>
+
+        <section id="interactive-selector" class="card p-6 md:p-8 mb-10">
+            <div class="text-center">
+                <h2 class="text-xl md:text-2xl font-bold mb-2">あなたの状況は？</h2>
+                <p class="text-slate-600 mb-6">まず、あなたのプロジェクトにおける「1回の試行コスト（時間・費用）」を選択してください。<br class="hidden md:block">あなたに最適な手法をハイライトします。</p>
+                
+                <div class="flex items-center justify-center space-x-4">
+                    <span id="ga-label" class="font-bold text-blue-500 text-lg transition-all">低い (Low Cost)</span>
+                    <label for="cost-toggle" class="cursor-pointer">
+                        <input type="checkbox" id="cost-toggle" class="hidden">
+                        <div class="switch-bg relative w-20 h-10 rounded-full flex items-center transition-colors">
+                            <div class="switch-handle absolute w-8 h-8 rounded-full shadow-md transition-transform"></div>
+                        </div>
+                    </label>
+                    <span id="bo-label" class="font-semibold text-slate-500 text-lg transition-all">高い (High Cost)</span>
+                </div>
+            </div>
+        </section>
+
+        <main id="comparison-section" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            <div id="ga-column" class="card p-6 transition-all duration-500">
+                <h3 class="text-2xl font-bold text-center mb-4 text-blue-600">🧬 遺伝的アルゴリズム (GA)</h3>
+                <div class="space-y-4">
+                    <div class="p-4 border-l-4 border-blue-200 bg-blue-50 rounded-r-lg">
+                        <h4 class="font-bold">コンセプト</h4>
+                        <p>多数の候補を同時に評価し、生物の進化のように世代交代で最適化。</p>
+                    </div>
+                    <div class="p-4 border-l-4 border-blue-200 bg-blue-50 rounded-r-lg">
+                        <h4 class="font-bold">戦略イメージ</h4>
+                        <p class="text-2xl font-mono" title="数打てば当たる戦略">•••➤ 🎯</p>
+                        <p>「数打てば当たる」戦略</p>
+                    </div>
+                    <div class="p-4 border-l-4 border-blue-200 bg-blue-50 rounded-r-lg">
+                        <h4 class="font-bold">得意なこと</h4>
+                        <ul class="list-none space-y-2 mt-2">
+                            <li><span class="text-green-500 mr-2">✅</span><strong>広範囲の探索:</strong> 未知の有望な領域を見つけやすい。</li>
+                            <li><span class="text-green-500 mr-2">✅</span><strong>多様な解の発見:</strong> 複数の特性を同時に満たす解など。</li>
+                            <li><span class="text-green-500 mr-2">✅</span><strong>高次元の問題:</strong> 組み合わせる要素が多い場合に有効。</li>
+                        </ul>
+                    </div>
+                    <div class="p-4 border-l-4 border-blue-200 bg-blue-50 rounded-r-lg">
+                        <h4 class="font-bold">具体的な用途</h4>
+                         <ul class="list-none space-y-2 mt-2">
+                            <li><span class="text-blue-500 mr-2">●</span>高速なシミュレーション</li>
+                            <li><span class="text-blue-500 mr-2">●</span>自動化されたハイスループット実験</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="bo-column" class="card p-6 transition-all duration-500">
+                <h3 class="text-2xl font-bold text-center mb-4 text-teal-600">🤖 ベイズ最適化 (BO)</h3>
+                <div class="space-y-4">
+                    <div class="p-4 border-l-4 border-teal-200 bg-teal-50 rounded-r-lg">
+                        <h4 class="font-bold">コンセプト</h4>
+                        <p>過去のデータから次の一手を賢く予測し、最小限の試行で最適化。</p>
+                    </div>
+                    <div class="p-4 border-l-4 border-teal-200 bg-teal-50 rounded-r-lg">
+                        <h4 class="font-bold">戦略イメージ</h4>
+                        <p class="text-2xl font-mono" title="少数精鋭の賢い戦略">▬▬▬➤ 🎯</p>
+                        <p>「少数精鋭」の賢い戦略</p>
+                    </div>
+                    <div class="p-4 border-l-4 border-teal-200 bg-teal-50 rounded-r-lg">
+                        <h4 class="font-bold">得意なこと</h4>
+                        <ul class="list-none space-y-2 mt-2">
+                            <li><span class="text-green-500 mr-2">✅</span><strong>少ない試行回数:</strong> 圧倒的な効率で最適解に迫る。</li>
+                            <li><span class="text-green-500 mr-2">✅</span><strong>開発期間の短縮:</strong> 実験や計算の回数を劇的に削減。</li>
+                            <li><span class="text-green-500 mr-2">✅</span><strong>コスト削減:</strong> 高価な実験・計算を最小化。</li>
+                        </ul>
+                    </div>
+                    <div class="p-4 border-l-4 border-teal-200 bg-teal-50 rounded-r-lg">
+                        <h4 class="font-bold">具体的な用途</h4>
+                        <ul class="list-none space-y-2 mt-2">
+                            <li><span class="text-teal-500 mr-2">●</span>合成と評価に数日かかる実験</li>
+                            <li><span class="text-teal-500 mr-2">●</span>大規模な第一原理計算</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="text-center mt-10">
+             <div id="final-conclusion" class="card p-6 max-w-3xl mx-auto transition-all duration-500">
+                <h3 class="text-xl font-bold">【最終判断】</h3>
+                <p id="conclusion-text" class="text-lg mt-2 text-slate-700">試行コストが低いなら遺伝的アルゴリズム、高いならベイズ最適化が第一候補です。</p>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        const toggle = document.getElementById('cost-toggle');
+        const gaColumn = document.getElementById('ga-column');
+        const boColumn = document.getElementById('bo-column');
+        const gaLabel = document.getElementById('ga-label');
+        const boLabel = document.getElementById('bo-label');
+        const conclusionText = document.getElementById('conclusion-text');
+        const finalConclusion = document.getElementById('final-conclusion');
+
+        function updateUI(isHighCost) {
+            if (isHighCost) {
+                boColumn.classList.add('highlight-bo');
+                boColumn.classList.remove('dimmed');
+                gaColumn.classList.add('dimmed');
+                gaColumn.classList.remove('highlight-ga');
+
+                boLabel.classList.remove('font-semibold', 'text-slate-500');
+                boLabel.classList.add('font-bold', 'text-teal-500');
+                gaLabel.classList.add('font-semibold', 'text-slate-500');
+                gaLabel.classList.remove('font-bold', 'text-blue-500');
+                
+                conclusionText.textContent = '試行コストが高いあなたの状況では、ベイズ最適化 (BO) が最適な選択肢です。';
+                finalConclusion.style.borderColor = '#14b8a6';
+
+            } else {
+                gaColumn.classList.add('highlight-ga');
+                gaColumn.classList.remove('dimmed');
+                boColumn.classList.add('dimmed');
+                boColumn.classList.remove('highlight-bo');
+                
+                gaLabel.classList.remove('font-semibold', 'text-slate-500');
+                gaLabel.classList.add('font-bold', 'text-blue-500');
+                boLabel.classList.add('font-semibold', 'text-slate-500');
+                boLabel.classList.remove('font-bold', 'text-teal-500');
+
+                conclusionText.textContent = '試行コストが低いあなたの状況では、遺伝的アルゴリズム (GA) が最適な選択肢です。';
+                finalConclusion.style.borderColor = '#3b82f6';
+            }
+        }
+
+        toggle.addEventListener('change', (event) => {
+            updateUI(event.target.checked);
+        });
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            updateUI(toggle.checked);
+        });
+    </script>
+</body>
+</html>
+
