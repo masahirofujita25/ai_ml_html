@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ベイズ最適化の段階的解説</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: "Educational Blue" - A clean, academic palette using shades of blue and slate gray to create a trustworthy and focused learning environment. -->
+    <!-- Application Structure Plan: The SPA is designed as a "Tabbed Learning Module". It presents the tiered information (Beginner, Intermediate, Advanced) in a familiar tab-based interface. This structure allows users to self-select their desired level of complexity without being overwhelmed by all the text at once. It's a classic, effective UI pattern for layered content, promoting focused reading and clear navigation within a single view. -->
+    <!-- Visualization & Content Choices: Report Info: Tiered explanation of Bayesian Optimization -> Goal: Present complex information in a digestible, user-controlled manner -> Viz/Presentation: A clean tabbed layout. Each tab reveals the content for one level. -> Interaction: Clicking a tab header hides the other content panels and displays the selected one. Active tabs are visually highlighted. -> Justification: Tabs are superior to a long scroll for this content because they chunk the information logically, reduce cognitive load, and give the user a clear sense of progression and control. -> Library/Method: Vanilla JS, Tailwind CSS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8fafc;
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+            color: #2563eb;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .content-card h3 {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #1e3a8a;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #dbeafe;
+        }
+        .content-card p, .content-card li {
+            color: #334155;
+            line-height: 1.75;
+        }
+        .content-card strong {
+            color: #1d4ed8;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="container mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
+
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">ベイズ最適化の段階的解説</h1>
+            <p class="mt-2 text-lg text-slate-600">初心者から上級者まで</p>
+        </header>
+
+        <main class="bg-white rounded-xl shadow-lg">
+            <!-- Tabs -->
+            <div class="border-b border-slate-200">
+                <nav class="flex -mb-px" aria-label="Tabs">
+                    <button class="tab-button active w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm md:text-base" data-target="beginner">
+                        🔰 初心者向け
+                    </button>
+                    <button class="tab-button w-1/3 py-4 px-1 text-center border-b-2 border-transparent font-medium text-sm md:text-base text-slate-500 hover:text-slate-700 hover:border-slate-300" data-target="intermediate">
+                        📖 中級者向け
+                    </button>
+                    <button class="tab-button w-1/3 py-4 px-1 text-center border-b-2 border-transparent font-medium text-sm md:text-base text-slate-500 hover:text-slate-700 hover:border-slate-300" data-target="advanced">
+                        🔬 上級者向け
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Content Panels -->
+            <div class="p-6 md:p-8">
+                <div id="beginner" class="tab-content active content-card">
+                    <h3>賢い「宝探し」のアナロジー</h3>
+                    <p class="mb-4">ベイズ最適化を一言でいうと、<strong>「過去のデータから学習し、最も効率的に『当たり』を見つけるための賢い戦略」</strong>です。</p>
+                    <p class="mb-4">あなたは、1日に1回しか掘れない「宝探し」をしています。ベイズ最適化は、あなたの優秀なアシスタントです。</p>
+                    <ol class="list-decimal list-inside space-y-4">
+                        <li>
+                            <strong>地図を作る:</strong> あなたが掘った場所（「A地点はずれ、B地点は少しお宝に近そう」）の結果をすべて記録し、「まだ掘っていない場所がどれくらい有望か」を予測する<strong>宝の地図</strong>を作ります。この地図には、「有望そうな場所」と「まだ情報がなくてよくわからない場所」が色分けされています。
+                        </li>
+                        <li>
+                            <strong>次の一手を決める:</strong> アシスタント（ベイズ最適化）は、その地図を見ながら、次に掘るべき最高の場所を1つだけ提案してくれます。その提案は、常に2つの考えに基づいています。
+                            <ul class="list-disc list-inside ml-6 mt-2 space-y-2">
+                                <li><strong>活用:</strong> 「昨日お宝に近かったB地点の、すぐ隣を掘ってみよう！もっと良いかもしれない！」</li>
+                                <li><strong>探索:</strong> 「まだ誰も足を踏み入れていない、あの謎の森を調べてみよう。誰も知らないすごいお宝があるかもしれない！」</li>
+                            </ul>
+                        </li>
+                    </ol>
+                    <p class="mt-4">ベイズ最適化は、この<strong>「活用」</strong>と<strong>「探索」</strong>のバランスを自動で取りながら、最も少ない回数で宝物を見つける手助けをしてくれるのです。</p>
+                </div>
+
+                <div id="intermediate" class="tab-content content-card">
+                    <h3>2つのエンジン「代理モデル」と「獲得関数」</h3>
+                    <p class="mb-4">初心者向けのアナロジーを、専門用語を使って見ていきましょう。ベイズ最適化は、主に2つのエンジンで動いています。</p>
+                    <ol class="list-decimal list-inside space-y-4">
+                        <li>
+                            <strong>代理モデル (Surrogate Model):</strong>
+                            <p class="mt-1">これが「宝の地図」の正体です。少ない実験データから、全体の性能を予測する軽量なモデルです。最もよく使われるのが<strong>ガウス過程回帰</strong>で、すべての予測地点に対して2つの重要な情報を出力します。</p>
+                            <ul class="list-disc list-inside ml-6 mt-2 space-y-2">
+                                <li><strong>平均 (Mean):</strong> 最も可能性の高い予測値。「この条件なら性能は85くらいだろう」</li>
+                                <li><strong>分散 (Variance):</strong> 予測の不確実性。「この条件はデータが近いから自信がある（分散小）。あっちは未知の領域だから自信がない（分散大）」</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>獲得関数 (Acquisition Function):</strong>
+                            <p class="mt-1">これが「次の一手を決める」アシスタントの正体です。代理モデルが作った平均と分散の情報を両方使って、「次に実験すべき最も価値の高い点」を計算します。獲得関数にはいくつか種類があり、それぞれ「活用」と「探索」のバランスの取り方が少しずつ異なります。</p>
+                        </li>
+                    </ol>
+                    <p class="mt-4">この<strong>「代理モデルで予測 → 獲得関数で次の点を決定 → 実験 → 結果を加えて代理モデルを更新」</strong>というサイクルを繰り返すのが、ベイズ最適化の全体像です。</p>
+                </div>
+
+                <div id="advanced" class="tab-content content-card">
+                    <h3>「活用 vs 探索」の調整ノブ "Kappa (κ)"</h3>
+                    <p class="mb-4">獲得関数のひとつである<strong>UCB (Upper Confidence Bound)</strong>は、その計算式が非常に直感的で、「活用」と「探索」のバランスを人間が直接コントロールできるのが特徴です。</p>
+                    <p class="mb-4">UCBの価値は、以下のような式で計算されます：<br>
+                    <code class="text-sm bg-slate-100 p-2 rounded">UCBスコア = (予測の平均値) + κ × (予測の不確かさ)</code>
+                    </p>
+                    <p class="mb-4">ここで登場するのが <strong>κ (カッパ)</strong> です。これは、<strong>探索の度合いをどれだけ重視するかを決める調整パラメータ（ノブ）</strong>の役割を果たします。</p>
+                    <ul class="list-none space-y-4">
+                        <li>
+                            <strong>κ の値を小さくする (例: κ = 0.1):</strong>
+                            <p class="mt-1">式の後半部分（不確かさ）の影響が小さくなり、<strong>「活用」</strong>を重視する動きになります。アルゴリズムは、すでに性能が良いと分かっている場所の周辺を重点的に探しに行きます。しかし、局所的な最適解に囚われるリスクがあります。</p>
+                        </li>
+                        <li>
+                            <strong>κ の値を大きくする (例: κ = 10):</strong>
+                            <p class="mt-1">式の後半部分（不確かさ）の影響が大きくなり、<strong>「探索」</strong>を重視する動きになります。アルゴリズムは、予測性能はそこそこでも、まだデータがなく不確実性が高い場所を積極的に試しに行きます。しかし、最適解とは関係のない場所ばかりを探索してしまい、収束が遅くなるリスクがあります。</p>
+                        </li>
+                    </ul>
+                     <p class="mt-4">このように、κはベイズ最適化の振る舞いを直接コントロールするための重要なパラメータです。対象とする問題の性質を考慮してκを調整することで、より効率的な探索が可能になります。</p>
+                </div>
+            </div>
+        </main>
+
+        <footer class="text-center mt-8 text-slate-500 text-sm">
+            <p>タブをクリックして、各レベルの説明をご覧ください。</p>
+        </footer>
+    </div>
+
+    <script>
+        const tabs = document.querySelectorAll('.tab-button');
+        const contents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetId = tab.dataset.target;
+
+                tabs.forEach(t => {
+                    t.classList.remove('active');
+                });
+                tab.classList.add('active');
+
+                contents.forEach(content => {
+                    if (content.id === targetId) {
+                        content.classList.add('active');
+                    } else {
+                        content.classList.remove('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

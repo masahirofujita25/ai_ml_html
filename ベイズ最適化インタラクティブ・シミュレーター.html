@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ベイズ最適化インタラクティブ・シミュレーター</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: "Tech Slate" - A clean palette using slate grays for the base, a vibrant blue for data points and surrogate models, and a distinct teal for the acquisition function to create a clear, analytical feel. -->
+    <!-- Application Structure Plan: The SPA is designed as an interactive learning tool. The primary component is a live simulation dashboard with two linked charts (Surrogate Model and Acquisition Function). A control panel allows users to directly manipulate the key 'kappa' parameter, select different target functions, and step through the optimization process. This structure transforms the static, level-based text into a hands-on experiment, allowing users to build intuition by directly observing the cause-and-effect relationship between parameters and the algorithm's behavior. -->
+    <!-- Visualization & Content Choices: Report Info: Surrogate Model (Mean/Variance), Acquisition Function (UCB), Kappa parameter -> Goal: Visually demonstrate the exploration-exploitation trade-off across various function landscapes -> Viz/Presentation: Two synchronized Chart.js line charts. The top chart shows the "ground truth" function, the sampled points, and the surrogate model's predictions. The bottom chart visualizes the UCB acquisition function. -> Interaction: A slider for 'kappa', a dropdown to select the true function, and "Step"/"Reset" buttons control the simulation. Changing the function or kappa instantly updates the visuals. -> Justification: This interactive simulation is the most effective way to teach the dynamic process of Bayesian Optimization, making abstract concepts tangible. -> Library/Method: Chart.js (Canvas), Vanilla JS, Tailwind CSS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f1f5f9;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 40vh;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="container mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
+
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">ベイズ最適化インタラクティブ・シミュレーター</h1>
+            <p class="mt-2 text-lg text-slate-600">「活用」と「探索」のトレードオフを体験する</p>
+        </header>
+
+        <main class="bg-white rounded-xl shadow-lg p-4 md:p-8">
+            
+            <div class="mb-6">
+                <p class="text-slate-700">このシミュレーターは、ベイズ最適化がどのようにして未知の関数（黒の点線）の最大値を探すかを可視化します。アルゴリズムは観測した点（●）を元に「代理モデル」（青線と水色の範囲）を構築し、「獲得関数」（緑線）が最大になる次の探索点を決定します。</p>
+            </div>
+
+            <!-- Chart for Surrogate Model -->
+            <div class="chart-container mb-4">
+                <canvas id="surrogateChart"></canvas>
+            </div>
+
+            <!-- Chart for Acquisition Function -->
+            <div class="chart-container">
+                <canvas id="acquisitionChart"></canvas>
+            </div>
+
+            <!-- Controls -->
+            <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 items-center bg-slate-50 p-6 rounded-lg">
+                <div class="md:col-span-1">
+                    <label for="kappa-slider" class="block font-bold text-lg mb-2 text-slate-700">探索の度合い (κ)</label>
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm font-medium text-blue-600">活用</span>
+                        <input id="kappa-slider" type="range" min="0.01" max="5" step="0.01" value="1.0" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        <span class="text-sm font-medium text-teal-600">探索</span>
+                    </div>
+                    <div class="text-center mt-1"><span id="kappa-value" class="font-bold text-xl text-slate-800">1.00</span></div>
+                </div>
+                
+                <div class="md:col-span-2 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                    <div class="flex-grow">
+                        <label for="function-select" class="block text-sm font-bold mb-1 text-slate-700">真の関数を選択</label>
+                        <select id="function-select" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 transition">
+                            <option value="complex">複雑な関数</option>
+                            <option value="doublePeak">2つのピーク</option>
+                            <option value="sharpPeak">鋭いピーク</option>
+                            <option value="simpleSine">単純なサイン波</option>
+                        </select>
+                    </div>
+                    <div class="flex space-x-4 flex-shrink-0">
+                        <button id="step-button" class="w-full bg-slate-800 text-white font-bold py-3 px-4 rounded-lg hover:bg-slate-700 transition-colors mt-auto h-[46px]">Step</button>
+                        <button id="reset-button" class="w-full bg-slate-200 text-slate-800 font-bold py-3 px-4 rounded-lg hover:bg-slate-300 transition-colors mt-auto h-[46px]">Reset</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Explanation -->
+            <div id="explanation-box" class="mt-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+                <h3 class="font-bold text-yellow-800">解説</h3>
+                <p id="explanation-text" class="text-yellow-700 mt-1">下のスライダーでκ（カッパ）の値を調整し、「Step」ボタンを押してください。κの値が「活用」と「探索」のバランスをどう変えるか観察できます。</p>
+            </div>
+
+        </main>
+        
+        <footer class="text-center mt-8 text-slate-500 text-sm">
+            <p>このシミュレーターは、ベイズ最適化の概念を直感的に理解するために作成されました。</p>
+        </footer>
+    </div>
+
+    <script>
+        const surrogateCanvas = document.getElementById('surrogateChart');
+        const acquisitionCanvas = document.getElementById('acquisitionChart');
+        const kappaSlider = document.getElementById('kappa-slider');
+        const kappaValueDisplay = document.getElementById('kappa-value');
+        const stepButton = document.getElementById('step-button');
+        const resetButton = document.getElementById('reset-button');
+        const functionSelect = document.getElementById('function-select');
+        const explanationText = document.getElementById('explanation-text');
+
+        const N_POINTS = 201;
+        const X = Array.from({ length: N_POINTS }, (_, i) => (i / (N_POINTS - 1)) * 10);
+        
+        const trueFunctions = {
+            complex: (x) => Math.sin(x) * 3 + Math.cos(x / 2) * 2 + Math.sin(x/4) * 1.5,
+            doublePeak: (x) => Math.exp(-Math.pow(x - 2.5, 2)) * 5 + Math.exp(-Math.pow(x - 7.5, 2)) * 7,
+            sharpPeak: (x) => 8 / (1 + Math.pow(x - 5, 4)),
+            simpleSine: (x) => Math.sin(x * 0.8) * 4 + 1
+        };
+        let currentFunctionName = 'complex';
+        let Y_TRUE = X.map(trueFunctions[currentFunctionName]);
+
+        let sampledPoints = [];
+        let surrogateModel = { mean: new Array(N_POINTS).fill(0), std: new Array(N_POINTS).fill(1) };
+        let acquisitionValues = new Array(N_POINTS).fill(0);
+
+        let surrogateChart, acquisitionChart;
+
+        function kernel(x1, x2, l = 1.0) {
+            return Math.exp(-0.5 * Math.pow((x1 - x2) / l, 2));
+        }
+
+        function updateSurrogateModel() {
+            if (sampledPoints.length === 0) {
+                surrogateModel = { mean: new Array(N_POINTS).fill(0), std: new Array(N_POINTS).fill(1) };
+                return;
+            }
+
+            const xs = sampledPoints.map(p => p.x);
+            const ys = sampledPoints.map(p => p.y);
+
+            for (let i = 0; i < N_POINTS; i++) {
+                const x_pred = X[i];
+                let weights = xs.map(x_sample => kernel(x_pred, x_sample, 1.0));
+                const sumWeights = weights.reduce((a, b) => a + b, 0);
+
+                if (sumWeights > 1e-6) {
+                    weights = weights.map(w => w / sumWeights);
+                    const mean = weights.reduce((acc, w, j) => acc + w * ys[j], 0);
+                    surrogateModel.mean[i] = mean;
+
+                    const weightedDist = xs.reduce((acc, x_sample, j) => acc + weights[j] * Math.abs(x_pred - x_sample), 0);
+                    surrogateModel.std[i] = Math.min(1.5, 0.2 + weightedDist * 0.5);
+                } else {
+                    surrogateModel.mean[i] = 0;
+                    surrogateModel.std[i] = 1.5;
+                }
+            }
+        }
+
+        function updateAcquisitionFunction() {
+            const kappa = parseFloat(kappaSlider.value);
+            for (let i = 0; i < N_POINTS; i++) {
+                acquisitionValues[i] = surrogateModel.mean[i] + kappa * surrogateModel.std[i];
+            }
+        }
+
+        function findNextPoint() {
+            let maxAcq = -Infinity;
+            let nextIndex = -1;
+            for (let i = 0; i < N_POINTS; i++) {
+                if (acquisitionValues[i] > maxAcq) {
+                    maxAcq = acquisitionValues[i];
+                    nextIndex = i;
+                }
+            }
+            return nextIndex;
+        }
+
+        function takeStep() {
+            const nextIndex = findNextPoint();
+            const nextX = X[nextIndex];
+            const nextY = trueFunctions[currentFunctionName](nextX);
+            sampledPoints.push({ x: nextX, y: nextY });
+            
+            updateSurrogateModel();
+            updateAcquisitionFunction();
+            updateCharts();
+            updateExplanation();
+        }
+
+        function updateExplanation() {
+            const kappa = parseFloat(kappaSlider.value);
+            if (kappa < 0.5) {
+                explanationText.textContent = `κの値が非常に小さいため、アルゴリズムは「活用」を重視しています。つまり、現在最も性能が良いと予測される点（青線のピーク）の近くを探索しようとします。`;
+            } else if (kappa > 3.0) {
+                explanationText.textContent = `κの値が非常に大きいため、アルゴリズムは「探索」を重視しています。予測が不確かな場所（水色の範囲が広い場所）を積極的に探索し、未知の有望な領域を探そうとします。`;
+            } else {
+                explanationText.textContent = `κの値は「活用」と「探索」のバランスが取れています。性能が良さそうな場所と、まだデータが少なく不確かな場所の両方を考慮して、次の探索点を決定します。`;
+            }
+        }
+
+        function initialize() {
+            currentFunctionName = functionSelect.value;
+            Y_TRUE = X.map(trueFunctions[currentFunctionName]);
+            
+            sampledPoints = [];
+            const initialIndices = [Math.floor(N_POINTS * 0.2), Math.floor(N_POINTS * 0.8)];
+            initialIndices.forEach(idx => {
+                sampledPoints.push({ x: X[idx], y: trueFunctions[currentFunctionName](X[idx]) });
+            });
+            
+            updateSurrogateModel();
+            updateAcquisitionFunction();
+            
+            if (surrogateChart) {
+                updateCharts();
+            } else {
+                createCharts();
+            }
+            updateExplanation();
+        }
+        
+        function reset() {
+            initialize();
+        }
+
+        function createCharts() {
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 500 },
+                scales: {
+                    x: { type: 'linear', position: 'bottom', min: 0, max: 10, title: { display: true, text: 'パラメータ空間' } },
+                    y: { beginAtZero: false }
+                },
+                plugins: { legend: { display: true } }
+            };
+
+            if (surrogateChart) surrogateChart.destroy();
+            surrogateChart = new Chart(surrogateCanvas, {
+                type: 'line',
+                data: {
+                    labels: X,
+                    datasets: [
+                        { type: 'line', label: '未知の真の関数', data: Y_TRUE, borderColor: 'rgba(0, 0, 0, 0.5)', borderWidth: 2, pointRadius: 0, borderDash: [5, 5] },
+                        { type: 'line', label: '代理モデル (予測平均)', data: surrogateModel.mean, borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 2, pointRadius: 0, fill: '+1' },
+                        { type: 'line', label: '不確実性 (95%信頼区間)', data: surrogateModel.mean.map((m, i) => m + 1.96 * surrogateModel.std[i]), borderColor: 'rgba(147, 197, 253, 0.5)', pointRadius: 0, fill: false },
+                        { type: 'line', label: 'lower_bound', data: surrogateModel.mean.map((m, i) => m - 1.96 * surrogateModel.std[i]), backgroundColor: 'rgba(147, 197, 253, 0.3)', borderColor: 'transparent', pointRadius: 0, fill: '-1' },
+                        { type: 'scatter', label: '観測点', data: sampledPoints, backgroundColor: 'rgba(239, 68, 68, 1)', pointRadius: 6, pointHoverRadius: 8 }
+                    ]
+                },
+                options: { ...commonOptions, plugins: { legend: { labels: { filter: item => item.text !== 'lower_bound' } } } }
+            });
+
+            if (acquisitionChart) acquisitionChart.destroy();
+            acquisitionChart = new Chart(acquisitionCanvas, {
+                type: 'line',
+                data: {
+                    labels: X,
+                    datasets: [{
+                        label: '獲得関数 (UCB)',
+                        data: acquisitionValues,
+                        borderColor: 'rgba(20, 184, 166, 1)',
+                        backgroundColor: 'rgba(20, 184, 166, 0.2)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: true
+                    }]
+                },
+                options: { ...commonOptions, scales: { ...commonOptions.scales, y: { title: { display: true, text: '次の探索点の有望度' } } } }
+            });
+        }
+
+        function updateCharts() {
+            surrogateChart.data.datasets[0].data = Y_TRUE;
+            surrogateChart.data.datasets[1].data = surrogateModel.mean;
+            surrogateChart.data.datasets[2].data = surrogateModel.mean.map((m, i) => m + 1.96 * surrogateModel.std[i]);
+            surrogateChart.data.datasets[3].data = surrogateModel.mean.map((m, i) => m - 1.96 * surrogateModel.std[i]);
+            surrogateChart.data.datasets[4].data = sampledPoints;
+            surrogateChart.update();
+
+            acquisitionChart.data.datasets[0].data = acquisitionValues;
+            acquisitionChart.update();
+        }
+
+        kappaSlider.addEventListener('input', () => {
+            kappaValueDisplay.textContent = parseFloat(kappaSlider.value).toFixed(2);
+            updateAcquisitionFunction();
+            updateCharts();
+            updateExplanation();
+        });
+
+        stepButton.addEventListener('click', takeStep);
+        resetButton.addEventListener('click', reset);
+        functionSelect.addEventListener('change', reset);
+
+        document.addEventListener('DOMContentLoaded', initialize);
+    </script>
+</body>
+</html>
