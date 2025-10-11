@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>整然データ（Tidy Data）インタラクティブガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Academic Palette -->
+    <!-- Application Structure Plan: The application is structured as an interactive, guided tutorial. It starts with a clear definition, then presents the core principles as interactive cards. The central feature is a "Data Inspector" where users can switch between a valid "Tidy Data" example and various "Not Tidy" examples. For messy data, the specific problematic cells are visually highlighted, and a clear explanation is provided. This is followed by an FAQ section and a summary of why Tidy Data is important. This sequential, hands-on structure was chosen to transform a passive document into an active learning experience, allowing users to directly see and understand common data formatting errors, which is more effective for retention than simply reading about them. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: 3 Principles of Tidy Data -> Goal: Inform/Organize -> Viz/Method: Interactive Cards -> Interaction: Hover to highlight -> Justification: Breaks down core concepts into digestible, visually distinct blocks.
+        - Report Info: Tidy vs. Not Tidy Examples -> Goal: Compare/Demonstrate/Educate -> Viz/Method: "Data Inspector" component with buttons and dynamically rendered HTML tables -> Interaction: User clicks a button to load a data example. JS renders the table, visually highlights error cells with a distinct style, and displays a contextual explanation of the problem -> Justification: This is the core interactive element. It makes abstract errors tangible and provides immediate visual feedback, creating a powerful learning tool. -> Library/Method: Vanilla JS, Tailwind CSS.
+        - Report Info: FAQ about Sparse Data -> Goal: Clarify -> Viz/Method: Simple Q&A block -> Interaction: Static text -> Justification: A direct, clear presentation is most effective for this specific clarifying point.
+        - Report Info: Why Tidy Data is necessary -> Goal: Persuade/Inform -> Viz/Method: Icon-based list -> Interaction: Static -> Justification: Uses visual cues (Unicode characters) to make the benefits easy to scan and remember.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #F8F9FA;
+            color: #212529;
+        }
+        .accent-bg { background-color: #005F73; }
+        .accent-text { color: #005F73; }
+        .accent-border { border-color: #005F73; }
+        .secondary-bg { background-color: #E9ECEF; }
+        .highlight-error {
+            background-color: #F8D7DA !important;
+            color: #721C24;
+            outline: 2px solid #D90429;
+            position: relative;
+        }
+        .card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .data-inspector-btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .data-inspector-btn.active {
+            background-color: #005F73;
+            color: white;
+            font-weight: bold;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <!-- Header -->
+        <header class="text-center mb-16">
+            <h1 class="text-4xl md:text-5xl font-bold accent-text mb-4">整然データ（Tidy Data）</h1>
+            <p class="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">データ活用のための基礎知識</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="space-y-20">
+            <!-- Section 1: Introduction & Principles -->
+            <section id="principles">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-3">1. 整然データの3つの原則</h2>
+                    <p class="text-md text-gray-600 max-w-2xl mx-auto">MI（マテリアルズインフォマティクス）で精度の高い分析を行うには、データが機械にとって扱いやすい形式である必要があります。その理想的な形式が「整然データ」であり、3つのシンプルな原則に基づいています。</p>
+                </div>
+                <div class="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                    <div class="card bg-white p-6 rounded-lg shadow-md border-t-4 accent-border">
+                        <span class="text-3xl font-bold accent-text">1</span>
+                        <h3 class="text-xl font-bold text-gray-900 mt-2 mb-2">1変数 1列</h3>
+                        <p class="text-gray-600">各変数（温度、圧力など）は、それぞれ独立した1つの列をなします。</p>
+                    </div>
+                    <div class="card bg-white p-6 rounded-lg shadow-md border-t-4 accent-border">
+                        <span class="text-3xl font-bold accent-text">2</span>
+                        <h3 class="text-xl font-bold text-gray-900 mt-2 mb-2">1観測 1行</h3>
+                        <p class="text-gray-600">1回の実験結果といった、ひとかたまりの観測は、1つの行にまとめます。</p>
+                    </div>
+                    <div class="card bg-white p-6 rounded-lg shadow-md border-t-4 accent-border">
+                        <span class="text-3xl font-bold accent-text">3</span>
+                        <h3 class="text-xl font-bold text-gray-900 mt-2 mb-2">1種類 1テーブル</h3>
+                        <p class="text-gray-600">実験データと化合物マスタなど、データの種類が違えばテーブルを分けます。</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: Data Inspector -->
+            <section id="inspector">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-3">2. データインスペクター</h2>
+                    <p class="text-md text-gray-600 max-w-2xl mx-auto">下のボタンをクリックして、整然データとそうでないデータの例を比較してみましょう。問題のある箇所は<span class="font-bold" style="color: #721C24;">赤く</span>ハイライトされます。</p>
+                </div>
+                <div class="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto">
+                    <!-- Controls -->
+                    <div class="w-full lg:w-1/4">
+                        <div id="inspector-controls" class="flex flex-row lg:flex-col flex-wrap gap-2">
+                            <button data-key="tidy" class="data-inspector-btn w-full text-left p-3 rounded-md bg-white shadow-sm active">✅ 整然データ</button>
+                            <button data-key="not_tidy_1" class="data-inspector-btn w-full text-left p-3 rounded-md bg-white shadow-sm">❌ 例1: 列名が値</button>
+                            <button data-key="not_tidy_2" class="data-inspector-btn w-full text-left p-3 rounded-md bg-white shadow-sm">❌ 例2: 複数情報セル</button>
+                            <button data-key="not_tidy_3" class="data-inspector-btn w-full text-left p-3 rounded-md bg-white shadow-sm">❌ 例3: データ型混在</button>
+                        </div>
+                    </div>
+                    <!-- Display -->
+                    <div class="w-full lg:w-3/4 bg-white p-6 rounded-lg shadow-lg">
+                        <h3 id="inspector-title" class="text-2xl font-bold mb-4"></h3>
+                        <div id="inspector-table" class="mb-4 overflow-x-auto"></div>
+                        <div id="inspector-explanation" class="secondary-bg p-4 rounded-md"></div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Section 3: FAQ -->
+            <section id="faq">
+                <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-md">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">3. よくある質問</h2>
+                    <div class="border-t pt-4">
+                        <h3 class="text-xl font-bold accent-text">Q: スパース（疎）なデータは「整然データ」ではないのですか？</h3>
+                        <p class="mt-2 text-gray-700">
+                            <strong>A: いいえ、スパースなデータ自体は多くの場合「整然データ」です。</strong>
+                        </p>
+                        <p class="mt-2 text-gray-700">
+                            スパースなデータとは、データの中に欠損値（空白など）が多い「状態」を指します。これは表の「構造（形式）」の問題ではありません。下の表はスパースですが、3つの原則を満たしているため「整然データ」です。欠損値をどう扱うかは、この後の「データ準備（前処理）」の工程で考えるべき課題となります。
+                        </p>
+                        <div class="mt-4 overflow-x-auto secondary-bg p-2 rounded">
+                            <table>
+                                <thead><tr><th>サンプルID</th><th>物性A</th><th>物性B</th><th>物性C</th></tr></thead>
+                                <tbody>
+                                    <tr><td>A-01</td><td>10.2</td><td></td><td>5.5</td></tr>
+                                    <tr><td>A-02</td><td></td><td>20.1</td><td></td></tr>
+                                    <tr><td>A-03</td><td>9.8</td><td></td><td>5.7</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 4: Why it matters -->
+            <section id="why">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-3">4. なぜデータを「整然」にする必要があるのか？</h2>
+                     <p class="text-md text-gray-600 max-w-2xl mx-auto">データを整然な形式にすることは、データ活用の成否を分ける最も重要なステップです。</p>
+                </div>
+                <div class="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">⚙️</div>
+                        <h3 class="text-xl font-bold mb-2">ツールの性能を最大化</h3>
+                        <p class="text-gray-600">ほとんどの分析ツールは整然データを前提に設計されており、エラーを防ぎ、性能を最大限に引き出せます。</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">⏱️</div>
+                        <h3 class="text-xl font-bold mb-2">分析作業の効率化</h3>
+                        <p class="text-gray-600">データ整形の手間を大幅に削減し、本来の目的である分析やモデル構築に集中できます。</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">🎯</div>
+                        <h3 class="text-xl font-bold mb-2">正確性と再現性を担保</h3>
+                        <p class="text-gray-600">誰が分析しても同じ結果を得やすくなり（再現性）、計算ミスや解釈の間違いも起こりにくくなります。</p>
+                    </div>
+                </div>
+            </section>
+
+             <!-- Conclusion -->
+            <section id="conclusion" class="text-center max-w-3xl mx-auto secondary-bg p-8 rounded-lg">
+                 <h2 class="text-3xl font-bold text-gray-800 mb-3">まとめ</h2>
+                 <p class="text-lg text-gray-700">データ分析の世界には「<strong class="accent-text">Garbage In, Garbage Out</strong>（ゴミを入れたら、ゴミしか出てこない）」という有名な言葉があります。どれだけ高性能なプラットフォームを使っても、元となるデータが整理されていなければ価値のある結果は得られません。「データを整然に保つ」という意識を持つことが、データ活用の成功に向けた最も重要な一歩となります。</p>
+            </section>
+
+        </main>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const dataExamples = {
+        tidy: {
+            title: '✅ 整然データ',
+            explanation: 'これは整然データの良い例です。各変数（実験ID, 温度, 圧力, 収率）が列に、各観測（1回の実験結果）が行に対応しており、分析ツールが最も得意とする形式です。',
+            headers: ['実験ID', '温度(℃)', '圧力(MPa)', '収率(%)'],
+            rows: [
+                ['exp-001', '150', '1.2', '85.4'],
+                ['exp-002', '160', '1.2', '88.1'],
+                ['exp-003', '150', '1.5', '90.2']
+            ],
+            problems: []
+        },
+        not_tidy_1: {
+            title: '❌ 例1: 列名が「値」になっている',
+            explanation: '問題点: 「150℃」「160℃」という本来は「温度」という変数の"値"であるべきものが、列名になってしまっています。これにより、温度を1つの変数として扱うことが困難になります。<br>原則違反: <strong>原則1 (各変数は1つの列をなす)</strong><br><br><strong>改善案:</strong> 「温度」という新しい列を作成し、「150℃」「160℃」をその列の値として移動させます。',
+            headers: ['圧力(MPa)', '150℃', '160℃'],
+            rows: [
+                ['1.2 MPa', '85.4%', '88.1%'],
+                ['1.5 MPa', '90.2%', '89.5%']
+            ],
+            problems: [{type: 'header', index: 1}, {type: 'header', index: 2}]
+        },
+        not_tidy_2: {
+            title: '❌ 例2: 1つのセルに複数の情報が入っている',
+            explanation: '問題点: 1列目のセルに「サンプル名」と「測定回数」という2つの変数が結合されています。これらを個別の変数として分析するためには、データを分割する手間が必要になります。<br>原則違反: <strong>原則1 (各変数は1つの列をなす)</strong><br><br><strong>改善案:</strong> 「サンプル名」と「測定回数」をそれぞれ独立した列に分割します。',
+            headers: ['サンプル_測定回数', '物性値A'],
+            rows: [
+                ['sampleA_1', '10.5'],
+                ['sampleA_2', '10.7']
+            ],
+            problems: [{type: 'cell', row: 0, col: 0}, {type: 'cell', row: 1, col: 0}]
+        },
+        not_tidy_3: {
+            title: '❌ 例3: 1つの列に異なる種類の情報が混在',
+            explanation: '問題点: 「評価」列に、数値（5, 3）とテキスト（測定不能）という異なるデータ型が混在しています。このままでは、この列を使って平均値を計算するなどの数値的な処理ができません。<br>原則違反: <strong>原則1 (各変数は1つの列をなす)</strong><br><br><strong>改善案:</strong> 「評価」列は数値のみに統一し、欠損値や測定不能といった情報は空白セルで表現するか、別の「備考」列を作成して記録します。',
+            headers: ['サンプルID', '評価'],
+            rows: [
+                ['A-01', '5'],
+                ['A-02', '測定不能'],
+                ['A-03', '3']
+            ],
+            problems: [{type: 'cell', row: 1, col: 1}]
+        }
+    };
+
+    const titleEl = document.getElementById('inspector-title');
+    const tableEl = document.getElementById('inspector-table');
+    const explanationEl = document.getElementById('inspector-explanation');
+    const controls = document.getElementById('inspector-controls');
+
+    function renderInspector(key) {
+        const example = dataExamples[key];
+        
+        titleEl.textContent = example.title;
+        explanationEl.innerHTML = `<p>${example.explanation}</p>`;
+
+        let tableHTML = '<table><thead><tr>';
+        example.headers.forEach((h, index) => {
+            const isProblem = example.problems.some(p => p.type === 'header' && p.index === index);
+            tableHTML += `<th class="${isProblem ? 'highlight-error' : ''}">${h}</th>`;
+        });
+        tableHTML += '</tr></thead><tbody>';
+
+        example.rows.forEach((row, rowIndex) => {
+            tableHTML += '<tr>';
+            row.forEach((cell, colIndex) => {
+                const isProblem = example.problems.some(p => p.type === 'cell' && p.row === rowIndex && p.col === colIndex);
+                tableHTML += `<td class="${isProblem ? 'highlight-error' : ''}">${cell}</td>`;
+            });
+            tableHTML += '</tr>';
+        });
+
+        tableHTML += '</tbody></table>';
+        tableEl.innerHTML = tableHTML;
+
+        controls.querySelectorAll('button').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.key === key) {
+                btn.classList.add('active');
+            }
+        });
+    }
+
+    controls.addEventListener('click', function(e) {
+        if (e.target.tagName === 'BUTTON') {
+            const key = e.target.dataset.key;
+            renderInspector(key);
+        }
+    });
+
+    // Initial render
+    renderInspector('tidy');
+});
+</script>
+
+</body>
+</html>
+
