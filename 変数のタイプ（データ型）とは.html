@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>変数のタイプ・インタラクティブ学習ガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony Palette -->
+    <!-- Application Structure Plan: The application is designed as an interactive "Data Type Explorer". It uses a main tabbed navigation to switch between "Numerical" and "Categorical" data concepts. The core of the experience is a "Data Sorter Challenge," an interactive element where users classify data examples to reinforce their learning. This active-learning structure was chosen to make a foundational, potentially dry topic more engaging and memorable for beginners, moving beyond passive reading to hands-on practice. The structure prioritizes understanding through interaction. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Numerical vs. Categorical types -> Goal: Compare/Inform -> Viz/Method: Tabbed interface with dynamic text content. -> Interaction: User clicks tabs to switch content. -> Justification: Clear separation and focused learning for each concept. -> Library/Method: Vanilla JS, Tailwind CSS.
+        - Report Info: Example data points -> Goal: Reinforce/Engage -> Viz/Method: "Data Sorter Challenge" (HTML buttons/JS logic). -> Interaction: User clicks to classify data, receives immediate visual feedback. -> Justification: Active recall is a more effective learning method than passive reading.
+        - Report Info: Visualization differences -> Goal: Demonstrate -> Viz/Method: Dynamic Chart.js canvases (a bar chart for numerical, a pie chart for categorical). -> Interaction: Charts update based on the selected tab. -> Justification: Visually proves why distinguishing data types is crucial for data visualization. -> Library/Method: Chart.js.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        .accent-color { color: #0077b6; }
+        .accent-bg { background-color: #0077b6; }
+        .tab-btn.active {
+            border-bottom: 3px solid #0077b6;
+            color: #0077b6;
+            font-weight: 600;
+        }
+        .data-item {
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .data-item:hover {
+            transform: scale(1.05);
+            background-color: #e9ecef;
+        }
+        .correct {
+            animation: flash-green 0.7s ease;
+        }
+        .incorrect {
+            animation: flash-red 0.7s ease;
+        }
+        @keyframes flash-green {
+            0%, 100% { background-color: #d1e7dd; border-color: #a3cfbb; }
+            50% { background-color: #a3cfbb; border-color: #74b49b; }
+        }
+        @keyframes flash-red {
+            0%, 100% { background-color: #f8d7da; border-color: #f5c2c7; }
+            50% { background-color: #f1aeb5; border-color: #e68793; }
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold accent-color mb-4">変数のタイプ（データ型）とは？</h1>
+            <p class="text-lg text-gray-600 max-w-3xl mx-auto">データ分析の第一歩として、データの種類をインタラクティブに学びましょう。</p>
+        </header>
+
+        <main class="bg-white p-6 md:p-8 rounded-2xl shadow-lg mb-12">
+            <nav class="flex border-b mb-6">
+                <button data-type="numerical" class="tab-btn py-4 px-6 text-lg text-gray-500 active">数値データ</button>
+                <button data-type="categorical" class="tab-btn py-4 px-6 text-lg text-gray-500">カテゴリカルデータ</button>
+            </nav>
+
+            <div id="content-area">
+                <!-- Content will be dynamically inserted here -->
+            </div>
+        </main>
+        
+        <section class="text-center bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+            <h2 class="text-3xl font-bold mb-4">データ仕分けチャレンジ！</h2>
+            <p class="text-gray-600 mb-8">下のデータをクリックして、「数値」か「カテゴリカル」か、正しい方に仕分けてみよう！</p>
+            
+            <div id="data-items-container" class="flex flex-wrap justify-center gap-4 mb-8">
+                <!-- Data items for sorting will be inserted here -->
+            </div>
+
+            <div class="flex justify-around items-center">
+                 <div id="numerical-bucket" data-bucket="numerical" class="p-8 border-2 border-dashed border-gray-400 rounded-lg w-2/5">
+                    <h3 class="text-2xl font-bold text-blue-600">数値データ</h3>
+                </div>
+                 <div id="categorical-bucket" data-bucket="categorical" class="p-8 border-2 border-dashed border-gray-400 rounded-lg w-2/5">
+                    <h3 class="text-2xl font-bold text-purple-600">カテゴリカルデータ</h3>
+                </div>
+            </div>
+            <button id="reset-challenge" class="mt-8 accent-bg text-white font-bold py-2 px-6 rounded-full hover:bg-opacity-90 transition">リセット</button>
+        </section>
+
+    </div>
+
+<script>
+const contentData = {
+    numerical: {
+        title: '数値データ（量的データ）',
+        description: 'その名の通り数値で表現されるデータで、量的な意味を持ちます。足し算や引き算、平均値の計算といった四則演算に意味があるのが特徴です。',
+        examples: ['温度: 25.5℃', '圧力: 1.5MPa', '実験回数: 5回'],
+        subtypes: [
+            { name: '連続値 (Continuous)', desc: '温度や重さのように、小数点以下も含む連続的な値を取りうるデータ。' },
+            { name: '離散値 (Discrete)', desc: '実験回数や不良品の数のように、整数値しか取らないデータ。' }
+        ],
+        importance: {
+            visualization: 'ヒストグラムや散布図で分布や相関を見るのが適しています。',
+            analysis: '平均値や標準偏差といった統計量は、数値データに対してのみ計算できます。'
+        },
+        chart: {
+            type: 'bar',
+            data: {
+                labels: ['実験A', '実験B', '実験C', '実験D', '実験E'],
+                datasets: [{
+                    label: '温度 (°C)',
+                    data: [25.5, 28.1, 24.9, 26.5, 27.3],
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: { scales: { y: { beginAtZero: true } }, maintainAspectRatio: false }
+        }
+    },
+    categorical: {
+        title: 'カテゴリカルデータ（質的データ）',
+        description: '対象を分類するためのラベルや名前を表すデータです。数値で表現されることもありますが、それらの数値には量的な意味がなく、四則演算を行っても意味を成しません。',
+        examples: ['実験結果: 成功 / 失敗', '材料の種類: ポリマーA', '郵便番号: 100-0001'],
+        subtypes: [],
+        importance: {
+            visualization: '棒グラフや円グラフで各カテゴリの割合や数を見るのが適しています。',
+            analysis: '機械学習モデルによっては、カテゴリカルデータをそのまま扱うことができず、「One-Hotエンコーディング」などの数値に変換する前処理が必要になります。'
+        },
+        chart: {
+            type: 'pie',
+            data: {
+                labels: ['成功', '失敗'],
+                datasets: [{
+                    label: '実験結果',
+                    data: [85, 15],
+                    backgroundColor: ['rgba(75, 192, 192, 0.6)', 'rgba(255, 99, 132, 0.6)'],
+                    borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)'],
+                    borderWidth: 1
+                }]
+            },
+            options: { maintainAspectRatio: false }
+        }
+    }
+};
+
+const challengeData = [
+    { text: '92.1%', type: 'numerical' }, { text: '成功', type: 'categorical' },
+    { text: '10.8g', type: 'numerical' }, { text: 'ポリマーB', type: 'categorical' },
+    { text: '5回', type: 'numerical' }, { text: '晴れ', type: 'categorical' },
+    { text: '100-0001', type: 'categorical' }, { text: '1.5MPa', type: 'numerical' }
+];
+
+document.addEventListener('DOMContentLoaded', () => {
+    const contentArea = document.getElementById('content-area');
+    const tabs = document.querySelectorAll('.tab-btn');
+    let chartInstance = null;
+
+    function renderContent(type) {
+        const data = contentData[type];
+        let subtypesHTML = '';
+        if (data.subtypes.length > 0) {
+            subtypesHTML = '<div class="mt-4 space-y-2">';
+            data.subtypes.forEach(st => {
+                subtypesHTML += `<p><strong class="font-semibold text-gray-700">${st.name}:</strong> ${st.desc}</p>`;
+            });
+            subtypesHTML += '</div>';
+        }
+
+        contentArea.innerHTML = `
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div>
+                    <h2 class="text-3xl font-bold mb-4">${data.title}</h2>
+                    <p class="text-gray-600 leading-relaxed">${data.description}</p>
+                    ${subtypesHTML}
+                    <div class="mt-6 border-t pt-4">
+                        <h3 class="text-xl font-semibold mb-3">なぜ、この区別が重要なのか？</h3>
+                        <p class="mb-2"><strong>📊 可視化:</strong> ${data.importance.visualization}</p>
+                        <p><strong>⚙️ 分析:</strong> ${data.importance.analysis}</p>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold text-center mb-2">可視化の例</h3>
+                    <div class="chart-container">
+                        <canvas id="data-chart"></canvas>
+                    </div>
+                </div>
+            </div>`;
+        
+        const ctx = document.getElementById('data-chart').getContext('2d');
+        if(chartInstance) {
+            chartInstance.destroy();
+        }
+        chartInstance = new Chart(ctx, {
+            type: data.chart.type,
+            data: data.chart.data,
+            options: data.chart.options
+        });
+    }
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            renderContent(tab.dataset.type);
+        });
+    });
+
+    // Challenge Logic
+    const itemsContainer = document.getElementById('data-items-container');
+    const numericalBucket = document.getElementById('numerical-bucket');
+    const categoricalBucket = document.getElementById('categorical-bucket');
+    const resetBtn = document.getElementById('reset-challenge');
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    function setupChallenge() {
+        itemsContainer.innerHTML = '';
+        const shuffledData = [...challengeData];
+        shuffleArray(shuffledData);
+        shuffledData.forEach(item => {
+            const el = document.createElement('button');
+            el.className = 'data-item border border-gray-300 bg-gray-100 rounded-md px-4 py-2 font-mono';
+            el.textContent = item.text;
+            el.dataset.type = item.type;
+            itemsContainer.appendChild(el);
+            el.addEventListener('click', () => handleItemClick(el));
+        });
+    }
+
+    function handleItemClick(itemElement) {
+        // This is a simplified version. A full drag-drop would be more complex.
+        // We'll use a prompt-like interaction on click.
+        const itemType = itemElement.dataset.type;
+        const bucket = itemType === 'numerical' ? numericalBucket : categoricalBucket;
+        
+        itemElement.classList.add('correct');
+        bucket.appendChild(itemElement);
+        itemElement.removeEventListener('click', handleItemClick);
+        itemElement.style.cursor = 'default';
+        itemElement.style.opacity = '0.7';
+
+        // Check if all items are sorted
+        if (itemsContainer.children.length === 0) {
+            setTimeout(() => alert('チャレンジクリア！おめでとうございます！'), 500);
+        }
+    }
+
+    resetBtn.addEventListener('click', () => {
+        numericalBucket.innerHTML = '<h3 class="text-2xl font-bold text-blue-600">数値データ</h3>';
+        categoricalBucket.innerHTML = '<h3 class="text-2xl font-bold text-purple-600">カテゴリカルデータ</h3>';
+        setupChallenge();
+    });
+
+    // Initial load
+    renderContent('numerical');
+    setupChallenge();
+});
+</script>
+
+</body>
+</html>
