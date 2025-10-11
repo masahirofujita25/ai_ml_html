@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>データ整理インタラクティブ実践ガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Modern Professional Palette -->
+    <!-- Application Structure Plan: The application is designed as an interactive, hands-on tutorial. It features a main "Technique Explorer" with vertical tab navigation for each cleaning technique. For each technique, users see a "Before" state of messy data. They can click a prominent "変換" (Transform) button, which triggers a visual, animated transition of the data table into its "After," clean state. This structure transforms passive reading into active learning, as the user directly initiates and observes the data transformation, reinforcing their understanding of the process. This is more effective for skill acquisition than simply comparing two static tables. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Three data cleaning techniques -> Goal: Educate/Demonstrate -> Viz/Method: Interactive "Before & After" HTML tables in a tabbed component -> Interaction: User clicks a tab to select a technique, then clicks a button to trigger a CSS/JS-powered animation that visually transforms the "Before" table into the "After" table. Explanation text updates alongside. -> Justification: The core of the report is the process of transformation. Visualizing this process through animation makes the concept tangible and memorable. It directly answers the "how" of data cleaning in an engaging way. -> Library/Method: Vanilla JS, Tailwind CSS.
+        - Report Info: Why cleaning is necessary -> Goal: Inform/Reinforce -> Viz/Method: Icon-based summary list -> Interaction: Static -> Justification: A clean, scannable format using Unicode characters as icons is sufficient to summarize the key benefits effectively.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f9fafb; /* gray-50 */
+            color: #111827; /* gray-900 */
+        }
+        .accent-color { color: #4338ca; } /* indigo-700 */
+        .accent-bg { background-color: #4338ca; }
+        .accent-border { border-color: #4338ca; }
+        
+        .tab-btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .tab-btn.active {
+            background-color: #e0e7ff; /* indigo-100 */
+            color: #4338ca; /* indigo-700 */
+            font-weight: 600;
+        }
+        
+        .table-container {
+            transition: opacity 0.5s ease-in-out;
+        }
+        
+        .fade-out {
+            opacity: 0;
+        }
+        .fade-in {
+            opacity: 1;
+        }
+
+        .transform-btn {
+            transition: background-color 0.2s, transform 0.2s;
+        }
+
+        .transform-btn:hover {
+            transform: scale(1.05);
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #d1d5db; /* gray-300 */
+            padding: 0.75rem;
+            text-align: left;
+        }
+        th {
+            background-color: #f3f4f6; /* gray-100 */
+        }
+        .before-table th { background-color: #fee2e2; } /* red-100 */
+        .after-table th { background-color: #dcfce7; } /* green-100 */
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+        <!-- Header -->
+        <header class="text-center mb-12 md:mb-16">
+            <h1 class="text-4xl md:text-5xl font-bold accent-color mb-4">データ整理の実践ガイド</h1>
+            <p class="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">「整然ではないデータ」を、分析に使える「整然データ」に変換する具体的なテクニックをインタラクティブに学びましょう。</p>
+        </header>
+
+        <!-- Main Interactive Section -->
+        <main class="bg-white p-6 md:p-8 rounded-2xl shadow-xl">
+            <div class="flex flex-col md:flex-row gap-8">
+                <!-- Navigation Tabs -->
+                <nav id="technique-tabs" class="flex md:flex-col md:w-1/4" role="tablist" aria-orientation="vertical">
+                    <button role="tab" data-technique="1" class="tab-btn w-full text-left p-4 rounded-lg active">テクニック1: 横長→縦長</button>
+                    <button role="tab" data-technique="2" class="tab-btn w-full text-left p-4 rounded-lg">テクニック2: セル分割</button>
+                    <button role="tab" data-technique="3" class="tab-btn w-full text-left p-4 rounded-lg">テクニック3: 型の統一</button>
+                </nav>
+
+                <!-- Content Display -->
+                <div id="technique-content" class="w-full md:w-3/4">
+                    <h2 id="content-title" class="text-2xl md:text-3xl font-bold mb-1"></h2>
+                    <p id="content-description" class="text-gray-600 mb-6"></p>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+                        <div id="before-container" class="table-container fade-in">
+                            <h3 class="text-xl font-semibold mb-2 text-red-600">【Before】整然ではないデータ</h3>
+                            <div id="before-table" class="overflow-x-auto rounded-lg border"></div>
+                        </div>
+                        
+                        <div id="after-container" class="table-container opacity-0">
+                            <h3 class="text-xl font-semibold mb-2 text-green-600">【After】整然データ</h3>
+                            <div id="after-table" class="overflow-x-auto rounded-lg border"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-8">
+                        <button id="transform-btn" class="transform-btn accent-bg text-white font-bold py-3 px-8 rounded-full shadow-lg text-lg">
+                            変換！ →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Summary Section -->
+        <section class="mt-16 text-center">
+            <h2 class="text-3xl font-bold text-gray-800 mb-3">なぜこの作業が必要なのか？</h2>
+            <p class="text-md text-gray-600 max-w-2xl mx-auto mb-12">データ整理は、分析の効率と質を飛躍的に向上させる、プロジェクト成功の鍵です。</p>
+            <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-4xl mb-4">⚙️</div>
+                    <h3 class="text-xl font-bold mb-2">ツールの性能を最大化</h3>
+                    <p class="text-gray-600">分析ツールは整然データを前提に設計されており、エラーを防ぎ、性能を最大限に引き出せます。</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-4xl mb-4">⏱️</div>
+                    <h3 class="text-xl font-bold mb-2">分析作業の効率化</h3>
+                    <p class="text-gray-600">データ整形の手間を大幅に削減し、本来の目的である分析やモデル構築に集中できます。</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-4xl mb-4">🎯</div>
+                    <h3 class="text-xl font-bold mb-2">正確性と再現性を担保</h3>
+                    <p class="text-gray-600">誰が分析しても同じ結果を得やすくなり、計算ミスや解釈の間違いも起こりにくくなります。</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const techniques = {
+        '1': {
+            title: '「横長」から「縦長」への変換（ピボット解除）',
+            description: 'クロス集計表のように、本来は「値」であるべきデータが列名になっているケースを修正します。',
+            before: {
+                headers: ['圧力(MPa)', '150℃', '160℃'],
+                rows: [
+                    ['1.2 MPa', '85.4%', '88.1%'],
+                    ['1.5 MPa', '90.2%', '89.5%']
+                ]
+            },
+            after: {
+                headers: ['圧力(MPa)', '温度(℃)', '収率(%)'],
+                rows: [
+                    ['1.2', '150', '85.4'],
+                    ['1.5', '150', '90.2'],
+                    ['1.2', '160', '88.1'],
+                    ['1.5', '160', '89.5']
+                ]
+            }
+        },
+        '2': {
+            title: '1つのセルに複数情報がある場合の分割',
+            description: '1つのセルに複数の変数が結合されている場合、それらを個別の列に分割します。',
+            before: {
+                headers: ['サンプル_測定回数', '物性値A'],
+                rows: [
+                    ['sampleA_1', '10.5'],
+                    ['sampleA_2', '10.7']
+                ]
+            },
+            after: {
+                headers: ['サンプル名', '測定回数', '物性値A'],
+                rows: [
+                    ['sampleA', '1', '10.5'],
+                    ['sampleA', '2', '10.7']
+                ]
+            }
+        },
+        '3': {
+            title: 'データ型の統一',
+            description: '1つの列には、必ず同じ種類のデータ（数値のみ、テキストのみ等）が入るようにします。',
+            before: {
+                headers: ['サンプルID', '評価'],
+                rows: [
+                    ['A-01', '5'],
+                    ['A-02', '測定不能'],
+                    ['A-03', '3']
+                ]
+            },
+            after: {
+                headers: ['サンプルID', '評価', '備考'],
+                rows: [
+                    ['A-01', '5', ''],
+                    ['A-02', '', '測定不能'],
+                    ['A-03', '3', '']
+                ]
+            }
+        }
+    };
+
+    let currentTechnique = '1';
+
+    const titleEl = document.getElementById('content-title');
+    const descriptionEl = document.getElementById('content-description');
+    const beforeTableEl = document.getElementById('before-table');
+    const afterTableEl = document.getElementById('after-table');
+    const beforeContainerEl = document.getElementById('before-container');
+    const afterContainerEl = document.getElementById('after-container');
+    const transformBtn = document.getElementById('transform-btn');
+    const tabsContainer = document.getElementById('technique-tabs');
+
+    function createTableHTML(data, tableClass) {
+        let html = `<table class="${tableClass}"><thead><tr>`;
+        data.headers.forEach(h => html += `<th>${h}</th>`);
+        html += '</tr></thead><tbody>';
+        data.rows.forEach(row => {
+            html += '<tr>';
+            row.forEach(cell => html += `<td>${cell}</td>`);
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function renderTechnique(techniqueId) {
+        const data = techniques[techniqueId];
+        
+        titleEl.textContent = data.title;
+        descriptionEl.textContent = data.description;
+        
+        beforeTableEl.innerHTML = createTableHTML(data.before, 'before-table');
+        afterTableEl.innerHTML = createTableHTML(data.after, 'after-table');
+
+        // Reset state
+        beforeContainerEl.classList.remove('fade-out');
+        beforeContainerEl.classList.add('fade-in');
+        afterContainerEl.classList.remove('fade-in');
+        afterContainerEl.classList.add('opacity-0');
+        transformBtn.disabled = false;
+        transformBtn.textContent = '変換！ →';
+        transformBtn.classList.remove('bg-gray-400');
+        transformBtn.classList.add('accent-bg');
+    }
+
+    function handleTabClick(e) {
+        const button = e.target.closest('button');
+        if (button) {
+            currentTechnique = button.dataset.technique;
+            
+            tabsContainer.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            renderTechnique(currentTechnique);
+        }
+    }
+    
+    function handleTransformClick() {
+        beforeContainerEl.classList.add('fade-out');
+        
+        setTimeout(() => {
+            afterContainerEl.classList.remove('opacity-0');
+            afterContainerEl.classList.add('fade-in');
+        }, 500);
+
+        transformBtn.disabled = true;
+        transformBtn.textContent = '変換完了！';
+        transformBtn.classList.remove('accent-bg');
+        transformBtn.classList.add('bg-gray-400');
+    }
+
+    tabsContainer.addEventListener('click', handleTabClick);
+    transformBtn.addEventListener('click', handleTransformClick);
+
+    // Initial render
+    renderTechnique(currentTechnique);
+});
+</script>
+
+</body>
+</html>
