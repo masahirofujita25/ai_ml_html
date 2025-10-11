@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マテリアルズインフォマティクス（MI）のためのデータサイエンス基礎知識</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Research Palette -->
+    <!-- Application Structure Plan: The application is designed as a linear, educational journey that builds concepts progressively. It starts with a high-level introduction, moves to foundational definitions ("What is Data?"), explains the transformation process ("Data to Features"), details the "Data Science Workflow" using an interactive stepper, provides a hands-on "Interactive Simulation" with a chart to solidify understanding, and concludes with a summary. This top-down, guided structure was chosen because the source report is educational. It helps users, likely new to the topic, grasp complex ideas step-by-step, moving from theory to a practical (though simulated) application, which is more effective for learning and retention than a simple dashboard or a direct copy of the report's structure. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: "What is Data?" examples -> Goal: Inform/Engage -> Viz/Method: Interactive Cards -> Interaction: Click to reveal text -> Justification: More engaging than a static list, reinforces the "raw material" concept -> Library/Method: Vanilla JS.
+        - Report Info: Data Science Workflow steps -> Goal: Organize/Explain Process -> Viz/Method: Interactive HTML/CSS Stepper Diagram -> Interaction: Click a step to see its description -> Justification: Visualizes the process flow and allows self-paced exploration, superior to a simple text list -> Library/Method: Vanilla JS.
+        - Report Info: Synthesized concepts of modeling and evaluation -> Goal: Demonstrate/Relate -> Viz/Method: Interactive Scatter Plot -> Interaction: Buttons to change models/filter data update the chart and an "accuracy" score -> Justification: Provides a hands-on simulation, making abstract workflow concepts tangible and memorable. This is the core interactive element. -> Library/Method: Chart.js, Vanilla JS.
+        - Report Info: Quantitative vs. Qualitative data -> Goal: Compare -> Viz/Method: Side-by-side text columns -> Interaction: Static -> Justification: Provides a clear, direct comparison -> Library/Method: Tailwind CSS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #FDFBF8; /* Warm Neutral Background */
+            color: #4A4A4A;
+        }
+        .accent-bg { background-color: #008080; } /* Teal Accent */
+        .accent-text { color: #008080; }
+        .accent-border { border-color: #008080; }
+        .secondary-bg { background-color: #F0EBE3; } /* Lighter Warm Neutral */
+        .card-shadow { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        .step { transition: all 0.3s ease; }
+        .step.active {
+            background-color: #008080;
+            color: white;
+            transform: scale(1.05);
+        }
+        .step.active .step-circle {
+            background-color: white;
+            color: #008080;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 40vh;
+            max-height: 450px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 50vh;
+                max-height: 500px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <!-- Header -->
+        <header class="text-center mb-16">
+            <h1 class="text-4xl md:text-5xl font-bold accent-text mb-4">データサイエンス基礎知識</h1>
+            <p class="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">マテリアルズインフォマティクス（MI）を活用し、研究開発を加速させるためのガイド</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="space-y-20">
+            <!-- Section 1: What is Data? -->
+            <section id="what-is-data">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-3">1. 「データ」とは？ - 予測モデルの原材料</h2>
+                    <p class="text-md text-gray-600 max-w-2xl mx-auto">データサイエンスの世界では、データは単なる事実の記録ではなく、未来を予測するためのモデルを構築するための「原材料」と捉えられます。下のカードをクリックして、MIにおけるデータの例を確認してみましょう。</p>
+                </div>
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="data-card p-6 secondary-bg rounded-lg card-shadow text-center cursor-pointer transform hover:scale-105 transition-transform duration-300">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">実験データ・論文情報</h3>
+                        <p class="data-card-text text-gray-600 hidden">新規材料の物性を予測するための原材料となります。</p>
+                    </div>
+                    <div class="data-card p-6 secondary-bg rounded-lg card-shadow text-center cursor-pointer transform hover:scale-105 transition-transform duration-300">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">分子構造・プロセス条件</h3>
+                        <p class="data-card-text text-gray-600 hidden">最適な合成条件を探索するための原材料となります。</p>
+                    </div>
+                    <div class="data-card p-6 secondary-bg rounded-lg card-shadow text-center cursor-pointer transform hover:scale-105 transition-transform duration-300">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">シミュレーション結果</h3>
+                        <p class="data-card-text text-gray-600 hidden">未知の挙動を予測するための原材料となります。</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: Data Types & Features -->
+            <section id="features">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-3">2. データの種類と「特徴量」</h2>
+                    <p class="text-md text-gray-600 max-w-2xl mx-auto">予測モデルは、データに含まれる様々な要素の関係性を学習します。このモデルが学習に使うデータの各項目を**特徴量（Feature）**と呼びます。データは主に2種類に大別されます。</p>
+                </div>
+                <div class="max-w-4xl mx-auto grid md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-lg card-shadow">
+                        <h3 class="text-2xl font-bold accent-text mb-3">① 定量データ</h3>
+                        <p class="text-gray-700">温度、圧力、分子量、物性値など、**数値で測定できるデータ**です。計算や比較が容易なため、機械学習モデルの主要な特徴量としてそのまま利用されることが多いです。</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg card-shadow">
+                        <h3 class="text-2xl font-bold accent-text mb-3">② 定性データ</h3>
+                        <p class="text-gray-700">実験ノートの記述や化合物の名称など、**言葉や文章で表現されるデータ**です。そのままでは計算できませんが、数値化することで重要な特徴量に変換できます。</p>
+                    </div>
+                </div>
+                <div class="mt-8 text-center p-4 secondary-bg rounded-lg max-w-4xl mx-auto">
+                    <p class="font-semibold text-gray-800">MIでは、これら多様なデータをモデルが学習しやすい「特徴量」へと効率的に加工する<strong class="accent-text">特徴量エンジニアリング</strong>が非常に重要となります。</p>
+                </div>
+            </section>
+
+            <!-- Section 3: The Workflow -->
+            <section id="workflow">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-3">3. データサイエンスのワークフロー</h2>
+                    <p class="text-md text-gray-600 max-w-2xl mx-auto">データを価値に変えるには、決まった手順を踏む必要があります。各ステップをクリックして詳細を確認してください。</p>
+                </div>
+                <div class="flex flex-col lg:flex-row gap-8 items-start">
+                    <div class="w-full lg:w-1/3 space-y-4">
+                        <div id="step-1" class="step bg-white p-4 rounded-lg card-shadow cursor-pointer flex items-center space-x-4 active">
+                            <div class="step-circle flex-shrink-0 bg-gray-200 rounded-full h-10 w-10 flex items-center justify-center font-bold text-gray-600">1</div>
+                            <h3 class="font-bold text-lg">課題の定義</h3>
+                        </div>
+                        <div id="step-2" class="step bg-white p-4 rounded-lg card-shadow cursor-pointer flex items-center space-x-4">
+                            <div class="step-circle flex-shrink-0 bg-gray-200 rounded-full h-10 w-10 flex items-center justify-center font-bold text-gray-600">2</div>
+                            <h3 class="font-bold text-lg">データ準備</h3>
+                        </div>
+                        <div id="step-3" class="step bg-white p-4 rounded-lg card-shadow cursor-pointer flex items-center space-x-4">
+                            <div class="step-circle flex-shrink-0 bg-gray-200 rounded-full h-10 w-10 flex items-center justify-center font-bold text-gray-600">3</div>
+                            <h3 class="font-bold text-lg">モデリング</h3>
+                        </div>
+                        <div id="step-4" class="step bg-white p-4 rounded-lg card-shadow cursor-pointer flex items-center space-x-4">
+                           <div class="step-circle flex-shrink-0 bg-gray-200 rounded-full h-10 w-10 flex items-center justify-center font-bold text-gray-600">4</div>
+                            <h3 class="font-bold text-lg">評価</h3>
+                        </div>
+                        <div id="step-5" class="step bg-white p-4 rounded-lg card-shadow cursor-pointer flex items-center space-x-4">
+                            <div class="step-circle flex-shrink-0 bg-gray-200 rounded-full h-10 w-10 flex items-center justify-center font-bold text-gray-600">5</div>
+                            <h3 class="font-bold text-lg">活用</h3>
+                        </div>
+                    </div>
+                    <div class="w-full lg:w-2/3 bg-white p-8 rounded-lg card-shadow min-h-[250px]">
+                        <div id="workflow-content">
+                            <!-- JS will populate this -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Section 4: Interactive Simulation -->
+            <section id="simulation">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-3">4. インタラクティブ・シミュレーション</h2>
+                    <p class="text-md text-gray-600 max-w-2xl mx-auto">ワークフローの概念を体験してみましょう。「材料硬度」を「プロセス温度」から予測するモデルの構築をシミュレートします。</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg card-shadow">
+                    <div class="chart-container mb-6">
+                        <canvas id="miChart"></canvas>
+                    </div>
+                    <div class="grid md:grid-cols-3 gap-6 text-center">
+                        <div class="secondary-bg p-4 rounded-lg">
+                            <h4 class="font-bold mb-2">Step 2: データ準備</h4>
+                            <button id="toggleOutliers" class="bg-gray-600 text-white font-bold py-2 px-4 rounded hover:bg-gray-700 transition-colors">外れ値を除去</button>
+                        </div>
+                        <div class="secondary-bg p-4 rounded-lg">
+                            <h4 class="font-bold mb-2">Step 3: モデリング</h4>
+                             <div class="flex justify-center gap-2">
+                                <button id="modelLinear" class="accent-bg text-white font-bold py-2 px-4 rounded hover:bg-teal-800 transition-colors">線形モデル</button>
+                                <button id="modelPoly" class="accent-bg text-white font-bold py-2 px-4 rounded hover:bg-teal-800 transition-colors">多項式モデル</button>
+                            </div>
+                        </div>
+                        <div class="secondary-bg p-4 rounded-lg">
+                            <h4 class="font-bold mb-2">Step 4: 評価</h4>
+                            <p class="text-lg">モデル精度 (R²): <span id="accuracyScore" class="font-bold accent-text">N/A</span></p>
+                        </div>
+                    </div>
+                    <div id="simulation-explanation" class="mt-6 text-center text-gray-600 bg-gray-50 p-4 rounded-md">
+                        <p>ボタンを操作して、データ準備やモデル選択が予測精度にどう影響するかを確認してください。</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Conclusion -->
+            <section id="conclusion" class="text-center max-w-3xl mx-auto">
+                 <h2 class="text-3xl font-bold text-gray-800 mb-3">まとめ</h2>
+                 <p class="text-lg text-gray-700">データサイエンスは、過去を分析するだけでなく、**データに基づいて未来を予測し、判断を自動化する**ためのアプローチです。勘や経験だけに頼らない、科学的な意思決定を行うことで、研究開発の精度とスピードを飛躍的に向上させることができます。</p>
+            </section>
+        </main>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Section 1: Data Cards Interaction
+    const dataCards = document.querySelectorAll('.data-card');
+    dataCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const text = card.querySelector('.data-card-text');
+            text.classList.toggle('hidden');
+        });
+    });
+
+    // Section 3: Workflow Stepper
+    const steps = document.querySelectorAll('.step');
+    const workflowContent = document.getElementById('workflow-content');
+    const workflowData = {
+        'step-1': {
+            title: '1. 課題の定義',
+            content: '何を予測・分類したいのか、研究開発上の課題を明確に定義します。例えば、「目標の物性値を持つ化合物を探索したい」や「収率が最大になるプロセス条件を特定したい」といった具体的なゴールを設定することが最初のステップです。'
+        },
+        'step-2': {
+            title: '2. データ準備',
+            content: '課題解決に必要と思われるデータを集め、モデルが学習しやすい形に整えます。実験データ、論文、シミュレーション結果など、様々なソースからデータを収集し、欠損値の補完や形式の統一を行います。これはデータサイエンスにおいて最も重要で時間を要する工程です。'
+        },
+        'step-3': {
+            title: '3. モデリング',
+            content: '様々な機械学習アルゴリズムを用いて、データ（特徴量）からパターンを学習し、予測モデルを構築します。どのアルゴリズムが課題に最適かを選択し、ハイパーパラメータを調整しながらモデルを作成します。'
+        },
+        'step-4': {
+            title: '4. 評価',
+            content: '作成したモデルが、未知のデータに対してどれくらいの精度で予測できるかを客観的に評価します。交差検証などの手法を用いてモデルの汎化性能を測定し、精度が不十分な場合は前のステップに戻って試行錯誤を繰り返します。'
+        },
+        'step-5': {
+            title: '5. 活用',
+            content: '完成したモデルを実際の実験計画やシミュレーションに活用します。その予測結果を日々の研究開発における意思決定に継続的に活かすことで、開発の効率化や新たな発見に繋げます。'
+        }
+    };
+
+    function updateWorkflowContent(stepId) {
+        steps.forEach(s => s.classList.remove('active'));
+        document.getElementById(stepId).classList.add('active');
+        
+        const data = workflowData[stepId];
+        workflowContent.innerHTML = `
+            <h3 class="text-2xl font-bold accent-text mb-4">${data.title}</h3>
+            <p class="text-gray-700 text-lg">${data.content}</p>
+        `;
+    }
+
+    steps.forEach(step => {
+        step.addEventListener('click', () => {
+            updateWorkflowContent(step.id);
+        });
+    });
+
+    updateWorkflowContent('step-1');
+
+
+    // Section 4: Interactive Chart
+    const ctx = document.getElementById('miChart').getContext('2d');
+    const accuracyScoreEl = document.getElementById('accuracyScore');
+    const explanationEl = document.getElementById('simulation-explanation');
+
+    const baseData = [
+        {x: 300, y: 55}, {x: 320, y: 60}, {x: 340, y: 62}, {x: 360, y: 68}, 
+        {x: 380, y: 72}, {x: 400, y: 75}, {x: 420, y: 78}, {x: 440, y: 83},
+        {x: 460, y: 88}, {x: 480, y: 90}, {x: 500, y: 94}
+    ];
+    const outliers = [{x: 350, y: 95}, {x: 450, y: 65}];
+    let currentData = [...baseData, ...outliers];
+    let showingOutliers = true;
+    
+    function getRegressionLine(data, degree = 1) {
+        if (data.length < 2) return [];
+        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        const n = data.length;
+        data.forEach(({x, y}) => {
+            sumX += x;
+            sumY += y;
+            sumXY += x * y;
+            sumX2 += x * x;
+        });
+
+        const m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        const b = (sumY - m * sumX) / n;
+        
+        const minX = Math.min(...data.map(d => d.x));
+        const maxX = Math.max(...data.map(d => d.x));
+
+        if (degree === 1) { // Linear
+            return [{x: minX, y: m * minX + b}, {x: maxX, y: m * maxX + b}];
+        } else { // Polynomial (simplified for demo)
+            return data.map(d => ({x: d.x, y: (m * d.x + b) * (1 - 0.001 * (d.x - 400))})).sort((a,b) => a.x - b.x);
+        }
+    }
+    
+    function calculateR2(data, line) {
+        if (line.length < 2) return 0;
+        const meanY = data.reduce((sum, d) => sum + d.y, 0) / data.length;
+        let ssTot = 0;
+        let ssRes = 0;
+        
+        const predict = (x) => {
+            if (line.length > 2) { // Poly
+                 const p1 = line.find(p => p.x >= x) || line[line.length - 1];
+                 const p0 = line.find(p => p.x <= x) || line[0];
+                 if(p1 === p0) return p1.y;
+                 return p0.y + (p1.y - p0.y) * (x - p0.x) / (p1.x - p0.x);
+            } else { // Linear
+                const m = (line[1].y - line[0].y) / (line[1].x - line[0].x);
+                const b = line[0].y - m * line[0].x;
+                return m * x + b;
+            }
+        };
+
+        data.forEach(d => {
+            ssTot += (d.y - meanY) ** 2;
+            ssRes += (d.y - predict(d.x)) ** 2;
+        });
+
+        return 1 - (ssRes / ssTot);
+    }
+    
+    const chart = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: '実験データ',
+                data: currentData,
+                backgroundColor: 'rgba(0, 128, 128, 0.6)',
+                borderColor: 'rgba(0, 128, 128, 1)',
+                borderWidth: 1
+            }, {
+                label: '予測モデル',
+                data: [],
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                type: 'line',
+                fill: false,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    position: 'bottom',
+                    title: { display: true, text: 'プロセス温度 (°C)', font: { size: 14 } }
+                },
+                y: {
+                    title: { display: true, text: '材料硬度 (HV)', font: { size: 14 } }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `温度: ${context.parsed.x}°C, 硬度: ${context.parsed.y} HV`;
+                        }
+                    }
+                },
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+
+    function updateChart(modelType, explanationText) {
+        const line = getRegressionLine(currentData, modelType === 'poly' ? 2 : 1);
+        chart.data.datasets[1].data = line;
+        
+        const r2 = calculateR2(currentData, line);
+        accuracyScoreEl.textContent = r2.toFixed(3);
+        explanationEl.innerHTML = `<p>${explanationText}</p>`;
+        
+        chart.update();
+    }
+    
+    document.getElementById('toggleOutliers').addEventListener('click', function() {
+        if (showingOutliers) {
+            currentData = [...baseData];
+            this.textContent = '外れ値を追加';
+            this.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+            this.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            explanationEl.innerHTML = `<p>データ準備: 精度に悪影響を与えそうな外れ値（異常な測定値）を除去しました。</p>`;
+        } else {
+            currentData = [...baseData, ...outliers];
+            this.textContent = '外れ値を除去';
+            this.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            this.classList.add('bg-gray-600', 'hover:bg-gray-700');
+            explanationEl.innerHTML = `<p>データ準備: 元のデータセットに戻しました。外れ値が存在しています。</p>`;
+        }
+        showingOutliers = !showingOutliers;
+        chart.data.datasets[0].data = currentData;
+        chart.data.datasets[1].data = [];
+        accuracyScoreEl.textContent = 'N/A';
+        chart.update();
+    });
+
+    document.getElementById('modelLinear').addEventListener('click', () => {
+         updateChart('linear', 'モデリング: 線形モデルを選択しました。データ全体の単純な傾向を捉えようとします。');
+    });
+
+    document.getElementById('modelPoly').addEventListener('click', () => {
+         updateChart('poly', 'モデリング: 多項式モデルを選択しました。より複雑なデータの関係性を捉えようとします。');
+    });
+
+});
+</script>
+
+</body>
+</html>
